@@ -1,0 +1,2056 @@
+* Introduction
+** To create an empty dataframe
+#+BEGIN_SRC python :session basics :async yes :results output
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("A", T.ArrayType(T.StringType()), True),
+          T.StructField("B", T.ArrayType(T.StringType()), True),
+      ]
+  )
+  data = []
+  df = spark.createDataFrame(schema=schema, data=data)
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+: +---+---+
+: |  A|  B|
+: +---+---+
+: +---+---+
+** To create a dataframe with columns key and value from a dictionary
+#+BEGIN_SRC python :session basics :async yes  :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  dict_a = {"key1": "value1", "key2": "value2"}
+  values = [(k, v) for k, v in dict_a.items()]
+  columns = ["key", "value"]
+
+  df = spark.createDataFrame(values, columns)
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+: +----+------+
+: | key| value|
+: +----+------+
+: |key1|value1|
+: |key2|value2|
+: +----+------+
+** To duplicate a column
+#+BEGIN_SRC python :session basics :async yes :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  dict_a = {"key1": "value1", "key2": "value2"}
+  values = [(k, v) for k, v in dict_a.items()]
+  columns = ["key", "value"]
+
+  df = spark.createDataFrame(values, columns)
+  df = df.withColumn("value_dup", F.col("value"))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+: +----+------+---------+
+: | key| value|value_dup|
+: +----+------+---------+
+: |key1|value1|   value1|
+: |key2|value2|   value2|
+: +----+------+---------+
+
+** To rename a column using withColumnRenamed()
+#+BEGIN_SRC python :session basics :async yes :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  dict_a = {"key1": "value1", "key2": "value2"}
+  values = [(k, v) for k, v in dict_a.items()]
+  columns = ["key", "value"]
+
+  df.show()
+  df = spark.createDataFrame(values, columns)
+  df = df.withColumnRenamed("key", "new_key") \
+          .withColumnRenamed("value","new_value")
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++-------+---------+
+|new_key|new_value|
++-------+---------+
+|   key1|   value1|
+|   key2|   value2|
++-------+---------+
+
++-------+---------+
+|new_key|new_value|
++-------+---------+
+|   key1|   value1|
+|   key2|   value2|
++-------+---------+
+#+end_example
+** To rename a column using withColumnsRenamed()
+#+BEGIN_SRC python :session basics :async yes :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  dict_a = {"key1": "value1", "key2": "value2"}
+  values = [(k, v) for k, v in dict_a.items()]
+  columns = ["key", "value"]
+
+  df.show()
+  df = spark.createDataFrame(values, columns)
+  df = df.withColumnsRenamed({"key": "new_key", "value": "new_value"})
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++-------+---------+
+|new_key|new_value|
++-------+---------+
+|   key1|   value1|
+|   key2|   value2|
++-------+---------+
+
++-------+---------+
+|new_key|new_value|
++-------+---------+
+|   key1|   value1|
+|   key2|   value2|
++-------+---------+
+#+end_example
+
+** To rename a column using "select"
+#+BEGIN_SRC python :session basics :async yes :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  dict_a = {"key1": "value1", "key2": "value2"}
+  values = [(k, v) for k, v in dict_a.items()]
+  columns = ["key", "value"]
+  df = spark.createDataFrame(values, columns)
+  df.show()
+
+  df = df.select(F.col("key").alias("new_key"), F.col("value").alias("new_value"))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++----+------+
+| key| value|
++----+------+
+|key1|value1|
+|key2|value2|
++----+------+
+
++-------+---------+
+|new_key|new_value|
++-------+---------+
+|   key1|   value1|
+|   key2|   value2|
++-------+---------+
+#+end_example
+
+** To rename columns by adding a prefix
+#+header: :session basics :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
+
+  schema = T.StructType(
+      [
+          T.StructField("index", T.IntegerType(), True),
+          T.StructField("value", T.StringType(), True),
+      ]
+  )
+  data = [(1, "Home"),
+          (2, "School"),
+          (3, "Home"),]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  print("Original dataframe:")
+  df.show()
+  print("Dataframe with renamed columns:")
+  df.select(*[F.col(k).alias(f"prefix_{k}") for k in df.columns]).show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Original dataframe:
++-----+------+
+|index| value|
++-----+------+
+|    1|  Home|
+|    2|School|
+|    3|  Home|
++-----+------+
+
+Dataframe with renamed columns:
++------------+------------+
+|prefix_index|prefix_value|
++------------+------------+
+|1           |Home        |
+|2           |School      |
+|3           |Home        |
++------------+------------+
+#+end_example
+
+** To drop columns from a dataframe
+#+BEGIN_SRC python :session basics :async yes :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  dict_a = {"key1": "value1", "key2": "value2"}
+  values = [(k, v) for k, v in dict_a.items()]
+  columns = ["key", "value"]
+  df = spark.createDataFrame(values, columns)
+
+  df = df.withColumn("const", F.lit(1))
+  df.show()
+
+  df = df.drop("value", "const")
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++----+------+-----+
+| key| value|const|
++----+------+-----+
+|key1|value1|    1|
+|key2|value2|    1|
++----+------+-----+
+
++----+
+| key|
++----+
+|key1|
+|key2|
++----+
+#+end_example
+** To subset columns of a dataframe
+#+BEGIN_SRC python :session basics :async yes :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  dict_a = {"key1": "value1", "key2": "value2"}
+  values = [(k, v) for k, v in dict_a.items()]
+  columns = ["key", "value"]
+  df = spark.createDataFrame(values, columns)
+  df = df.withColumn("const", F.lit(1))
+  df.show()
+  df["key", "value"].show()
+  df.select("key", "const").show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++----+------+-----+
+| key| value|const|
++----+------+-----+
+|key1|value1|    1|
+|key2|value2|    1|
++----+------+-----+
+
++----+------+
+| key| value|
++----+------+
+|key1|value1|
+|key2|value2|
++----+------+
+
++----+-----+
+| key|const|
++----+-----+
+|key1|    1|
+|key2|    1|
++----+-----+
+#+end_example
+
+** To add a column with a constant value using F.lit()
+#+BEGIN_SRC python :session basics :async yes :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  dict_a = {"key1": "value1", "key2": "value2"}
+  values = [(k, v) for k, v in dict_a.items()]
+  columns = ["key", "value"]
+  df = spark.createDataFrame(values, columns)
+  df.show()
+
+  df = df.withColumn("const_integer", F.lit(1))
+  df = df.withColumn("const_string", F.lit("string"))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++----+------+
+| key| value|
++----+------+
+|key1|value1|
+|key2|value2|
++----+------+
+
++----+------+-------------+------------+
+| key| value|const_integer|const_string|
++----+------+-------------+------------+
+|key1|value1|            1|      string|
+|key2|value2|            1|      string|
++----+------+-------------+------------+
+#+end_example
+** To add a column with a constant value using "select"
+#+BEGIN_SRC python :session basics :async yes :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  dict_a = {"key1": "value1", "key2": "value2"}
+  values = [(k, v) for k, v in dict_a.items()]
+  columns = ["key", "value"]
+  df = spark.createDataFrame(values, columns)
+  df.show()
+
+  df = df.select("key", "value", F.lit("const_str").alias("constant_value"))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+23/11/01 16:53:23 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
++----+------+
+| key| value|
++----+------+
+|key1|value1|
+|key2|value2|
++----+------+
+
++----+------+--------------+
+| key| value|constant_value|
++----+------+--------------+
+|key1|value1|     const_str|
+|key2|value2|     const_str|
++----+------+--------------+
+#+end_example
+
+** To create a dataframe from a list of tuples
+#+BEGIN_SRC python :session basics :async yes  :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  values = [(1, ["A", "B"]), (2, ["C", "D"]), (3, ["E", "F"])]
+  columns = ["integer", "characters"]
+
+  df = spark.createDataFrame(values, columns)
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+: +-------+----------+
+: |integer|characters|
+: +-------+----------+
+: |      1|    [A, B]|
+: |      2|    [C, D]|
+: |      3|    [E, F]|
+: +-------+----------+
+** To get the number of rows of a dataframe
+#+BEGIN_SRC python :session basics :async yes  :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  values = [(1, ["A", "B"]), (2, ["C", "D"]), (3, ["E", "F"])]
+  columns = ["integer", "characters"]
+
+  df = spark.createDataFrame(values, columns)
+  df.show()
+  num_rows = df.count()
+  print(f"df has {num_rows} rows")
+#+END_SRC
+
+#+RESULTS:
+: +-------+----------+
+: |integer|characters|
+: +-------+----------+
+: |      1|    [A, B]|
+: |      2|    [C, D]|
+: |      3|    [E, F]|
+: +-------+----------+
+:
+: df has 3 rows
+** To select first N rows
+#+header: :session basics :async yes
+#+BEGIN_SRC python :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  values = [(1, ["A", "B"]), (2, ["C", "D"]), (3, ["E", "F"])]
+  columns = ["integer", "characters"]
+
+  df = spark.createDataFrame(values, columns)
+  df.show()
+  print("These are first 2 rows:")
+  df.limit(2).show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++-------+----------+
+|integer|characters|
++-------+----------+
+|      1|    [A, B]|
+|      2|    [C, D]|
+|      3|    [E, F]|
++-------+----------+
+
+These are first 2 rows:
++-------+----------+
+|integer|characters|
++-------+----------+
+|      1|    [A, B]|
+|      2|    [C, D]|
++-------+----------+
+#+end_example
+
+** To deduplicate rows
+#+header: :session basics :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
+
+  schema = T.StructType(
+      [
+          T.StructField("key", T.IntegerType(), True),
+          T.StructField("value", T.StringType(), True),
+          T.StructField("comment", T.StringType(), True),
+      ]
+  )
+  data = [(1, "Home", "a house"),
+          (1, "Home", "a house"),
+          (2, "School", "a building"),
+          (2, "School", "a house"),
+          (3, "Home", "a house"),]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  print("Original dataframe:")
+  df.show()
+
+  print("Dataframe with distinct rows:")
+  df.distinct().show()
+
+  print("Dataframe with dropped duplicate rows:")
+  df.dropDuplicates().show()
+
+  print("Dataframe with dropped duplicates in columns 'key' and 'value':")
+  df.dropDuplicates(subset=["key", "value"]).show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Original dataframe:
++---+------+----------+
+|key| value|   comment|
++---+------+----------+
+|  1|  Home|   a house|
+|  1|  Home|   a house|
+|  2|School|a building|
+|  2|School|   a house|
+|  3|  Home|   a house|
++---+------+----------+
+
+Dataframe with distinct rows:
++---+------+----------+
+|key| value|   comment|
++---+------+----------+
+|  2|School|   a house|
+|  3|  Home|   a house|
+|  2|School|a building|
+|  1|  Home|   a house|
++---+------+----------+
+
+Dataframe with dropped duplicate rows:
++---+------+----------+
+|key| value|   comment|
++---+------+----------+
+|  2|School|   a house|
+|  3|  Home|   a house|
+|  2|School|a building|
+|  1|  Home|   a house|
++---+------+----------+
+
+Dataframe with dropped duplicates in columns 'key' and 'value'
++---+------+----------+
+|key|value |comment   |
++---+------+----------+
+|1  |Home  |a house   |
+|2  |School|a building|
+|3  |Home  |a house   |
++---+------+----------+
+#+end_example
+
+** To convert a column to a list using lambda function
+#+BEGIN_SRC python :session basics :async yes  :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  values = [(1, ["A", "B"]), (2, ["C", "D"]), (3, ["E", "F"])]
+  columns = ["integer", "characters"]
+
+  df = spark.createDataFrame(values, columns)
+  df.show()
+  lst = df.select("integer").rdd.map(lambda r: r[0]).collect()
+  print("Column \"integer \" has values:", lst)
+#+END_SRC
+
+#+RESULTS:
+: +-------+----------+
+: |integer|characters|
+: +-------+----------+
+: |      1|    [A, B]|
+: |      2|    [C, D]|
+: |      3|    [E, F]|
+: +-------+----------+
+:
+: Column "integer " has values: [1, 2, 3]
+** To convert a dataframe to a list of dictionaries corresponding to every row
+#+BEGIN_SRC python :session basics :async yes  :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  values = [(1, ["A", "B"]), (2, ["C", "D"]), (3, ["E", "F"])]
+  columns = ["integer", "characters"]
+
+  df = spark.createDataFrame(values, columns)
+  df.show()
+  lst_dict = df.rdd.map(lambda row: row.asDict()).collect()
+  print("Dataframe is represented as", lst_dict)
+#+END_SRC
+
+#+RESULTS:
+: +-------+----------+
+: |integer|characters|
+: +-------+----------+
+: |      1|    [A, B]|
+: |      2|    [C, D]|
+: |      3|    [E, F]|
+: +-------+----------+
+:
+: Dataframe is represented as [{'integer': 1, 'characters': ['A', 'B']}, {'integer': 2, 'characters': ['C', 'D']}, {'integer': 3, 'characters': ['E', 'F']}]
+
+** To convert a column to a list using list comprehension
+#+BEGIN_SRC python :session basics :async yes  :results output
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  values = [(1, ["A", "B"]), (2, ["C", "D"]), (3, ["E", "F"])]
+  columns = ["integer", "characters"]
+
+  df = spark.createDataFrame(values, columns)
+  df.show()
+  lst = [k["integer"] for k in df.select("integer").rdd.collect()]
+  print("Column \"integer \" has values:", lst)
+#+END_SRC
+
+#+RESULTS:
+: +-------+----------+
+: |integer|characters|
+: +-------+----------+
+: |      1|    [A, B]|
+: |      2|    [C, D]|
+: |      3|    [E, F]|
+: +-------+----------+
+:
+: Column "integer " has values: [1, 2, 3]
+** To convert a column to a list using Pandas
+#+BEGIN_SRC python :session basics :async yes  :results output
+    from pyspark.sql import SparkSession
+    import pyspark.sql.functions as F
+    spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+    values = [(1, ["A", "B"]), (2, ["C", "D"]), (3, ["E", "F"])]
+    columns = ["integer", "characters"]
+
+    df = spark.createDataFrame(values, columns)
+    df.show()
+    lst = df.select("integer").toPandas()["integer"].tolist()
+    print("Column \"integer \" has values:", lst)
+#+END_SRC
+
+#+RESULTS:
+: +-------+----------+
+: |integer|characters|
+: +-------+----------+
+: |      1|    [A, B]|
+: |      2|    [C, D]|
+: |      3|    [E, F]|
+: +-------+----------+
+:
+: Column "integer " has values: [1, 2, 3]
+
+** To display full width of a column (do not truncate)
+#+header: :session basics :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("sentence", T.ArrayType(T.StringType()), True),
+      ]
+  )
+  data = [(["A", "very", "long", "sentence"],),
+          (["with", "many", "words", "."],)]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  print("Truncated output:")
+  df.show()
+  print("Non-truncated output:")
+  df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+23/11/01 17:01:42 WARN SparkSession: Using an existing Spark session; only runtime SQL configurations will take effect.
+Truncated output:
++--------------------+
+|            sentence|
++--------------------+
+|[A, very, long, s...|
+|[with, many, word...|
++--------------------+
+
+Non-truncated output:
++-------------------------+
+|sentence                 |
++-------------------------+
+|[A, very, long, sentence]|
+|[with, many, words, .]   |
++-------------------------+
+#+end_example
+
+* Filtering rows
+** To filter based on values of a column
+#+header: :session num-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  schema = T.StructType(
+      [
+          T.StructField("Location", T.StringType(), True),
+          T.StructField("Product", T.StringType(), True),
+          T.StructField("Quantity", T.IntegerType(), True),
+      ]
+  )
+  data = [("Home", "Laptop", 12),
+          ("Home", "Monitor", None),
+          ("Home", "Keyboard", 9),
+          ("Office", "Laptop", None),
+          ("Office", "Monitor", 10),
+          ("Office", "Mouse", 9)]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  print("Original dataframe:")
+  df.show(truncate=False)
+
+  print('Filter: F.col("Location" == "Home")')
+  df.filter(F.col("Location") == "Home").show(truncate=False)
+
+  print('Filter: F.col("Quantity").isNull()')
+  df.filter(F.col("Quantity").isNull()).show(truncate=False)
+
+  print('Filter: F.col("Quantity").isNotNull()')
+  df.filter(F.col("Quantity").isNotNull()).show(truncate=False)
+
+  print('Filter: (F.col("Location") == "Home") & (F.col("Product") == "Laptop"))')
+  df.filter((F.col("Location") == "Home") & (F.col("Product") == "Laptop")).show(truncate=False)
+
+  print('Filter: (F.col("Location") == "Home") & !(F.col("Product") == "Laptop"))')
+  df.filter((F.col("Location") == "Home") & ~(F.col("Product") == "Laptop")).show(truncate=False)
+
+  print('Filter: (F.col("Product") == "Laptop") | (F.col("Product") == "Mouse"))')
+  df.filter((F.col("Product") == "Laptop") | (F.col("Product") == "Mouse")).show(truncate=False)
+
+  print('Filter: F.col("Product").isin(["Laptop", "Mouse"])')
+  df.filter(F.col("Product").isin(["Laptop", "Mouse"])).show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Original dataframe:
++--------+--------+--------+
+|Location|Product |Quantity|
++--------+--------+--------+
+|Home    |Laptop  |12      |
+|Home    |Monitor |null    |
+|Home    |Keyboard|9       |
+|Office  |Laptop  |null    |
+|Office  |Monitor |10      |
+|Office  |Mouse   |9       |
++--------+--------+--------+
+
+Filter: F.col("Location" == "Home")
++--------+--------+--------+
+|Location|Product |Quantity|
++--------+--------+--------+
+|Home    |Laptop  |12      |
+|Home    |Monitor |null    |
+|Home    |Keyboard|9       |
++--------+--------+--------+
+
+Filter: F.col("Quantity").isNull()
++--------+-------+--------+
+|Location|Product|Quantity|
++--------+-------+--------+
+|Home    |Monitor|null    |
+|Office  |Laptop |null    |
++--------+-------+--------+
+
+Filter: F.col("Quantity").isNotNull()
++--------+--------+--------+
+|Location|Product |Quantity|
++--------+--------+--------+
+|Home    |Laptop  |12      |
+|Home    |Keyboard|9       |
+|Office  |Monitor |10      |
+|Office  |Mouse   |9       |
++--------+--------+--------+
+
+Filter: (F.col("Location") == "Home") & (F.col("Product") == "Laptop"))
++--------+-------+--------+
+|Location|Product|Quantity|
++--------+-------+--------+
+|Home    |Laptop |12      |
++--------+-------+--------+
+
+Filter: (F.col("Location") == "Home") & !(F.col("Product") == "Laptop"))
++--------+--------+--------+
+|Location|Product |Quantity|
++--------+--------+--------+
+|Home    |Monitor |null    |
+|Home    |Keyboard|9       |
++--------+--------+--------+
+
+Filter: (F.col("Product") == "Laptop") | (F.col("Product") == "Mouse"))
++--------+-------+--------+
+|Location|Product|Quantity|
++--------+-------+--------+
+|Home    |Laptop |12      |
+|Office  |Laptop |null    |
+|Office  |Mouse  |9       |
++--------+-------+--------+
+
+Filter: F.col("Product").isin(["Laptop", "Mouse"])
++--------+-------+--------+
+|Location|Product|Quantity|
++--------+-------+--------+
+|Home    |Laptop |12      |
+|Office  |Laptop |null    |
+|Office  |Mouse  |9       |
++--------+-------+--------+
+#+end_example
+
+* Array operations
+** To create arrays of different lengths
+#+header: :session set-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("A", T.ArrayType(T.IntegerType()), True),
+          T.StructField("B", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [([1, 2], [2, 3, 4, 5]),
+          ([4, 5, 6], [2, 3, 4, 5])]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df.select("A", "B").show()
+#+END_SRC
+
+#+RESULTS:
+: +---------+------------+
+: |        A|           B|
+: +---------+------------+
+: |   [1, 2]|[2, 3, 4, 5]|
+: |[4, 5, 6]|[2, 3, 4, 5]|
+: +---------+------------+
+** To calculate set difference
+#+name: pd2org
+#+begin_src python  :var df="df" :exports none
+  return f"return tabulate({df}, headers={df}.columns, tablefmt='orgtbl')"
+#+end_src
+
+
+#+header: :session set-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("A", T.ArrayType(T.StringType()), True),
+          T.StructField("B", T.ArrayType(T.StringType()), True),
+      ]
+  )
+  data = [(["b", "a", "c"], ["c", "d", "a", "f"])]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  df.select("A", "B",
+            F.array_except("A", "B").alias("A\B"),
+            F.array_except("B", "A").alias("B\A")).show()
+#+END_SRC
+
+#+RESULTS:
+: +---------+------------+---+------+
+: |        A|           B|A\B|   B\A|
+: +---------+------------+---+------+
+: |[b, a, c]|[c, d, a, f]|[b]|[d, f]|
+: +---------+------------+---+------+
+
+** To calculate set union
+#+BEGIN_SRC python :session set-ops :async yes :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("A", T.ArrayType(T.StringType()), True),
+          T.StructField("B", T.ArrayType(T.StringType()), True),
+      ]
+  )
+  data = [(["b", "a", "c"], ["c", "d", "a", "f"])]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df.select("A", "B",
+            F.array_union("A", "B").alias("A U B")).show()
+#+END_SRC
+
+#+RESULTS:
+: 23/11/01 23:28:11 WARN SparkSession: Using an existing Spark session; only runtime SQL configurations will take effect.
+: +---------+------------+---------------+
+: |        A|           B|          A U B|
+: +---------+------------+---------------+
+: |[b, a, c]|[c, d, a, f]|[b, a, c, d, f]|
+: +---------+------------+---------------+
+** To calculate set intersection
+#+BEGIN_SRC python :session set-ops :async yes :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("A", T.ArrayType(T.StringType()), True),
+          T.StructField("B", T.ArrayType(T.StringType()), True),
+      ]
+  )
+  data = [(["b", "a", "c"], ["c", "d", "a", "f"])]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df.select("A", "B",
+            F.array_intersect("A", "B").alias("A ∩ B")).show()
+#+END_SRC
+
+#+RESULTS:
+: +---------+------------+------+
+: |        A|           B| A ∩ B|
+: +---------+------------+------+
+: |[b, a, c]|[c, d, a, f]|[a, c]|
+: +---------+------------+------+
+** To pad arrays with value
+#+header: :session set-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("A", T.ArrayType(T.IntegerType()), True),
+          T.StructField("B", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [([1, 2], [2, 3, 4, 5]),
+          ([4, 5, 6], [2, 3, 4, 5])]
+  df = spark.createDataFrame(schema=schema, data=data)
+  n = 4
+  fill_value = 0
+  df1 = df.withColumn("A_padding", F.expr(f"array_repeat({fill_value}, {n} - size(A))"))
+  df1 = df1.withColumn("A_padded", F.concat("A", "A_padding"))
+  df1.select("A", "A_padding", "A_padded").show()
+
+  df2 = df.withColumn("A_padding", F.array_repeat(F.lit(fill_value), F.lit(n) - F.size("A")))
+  df2 = df2.withColumn("A_padded", F.concat("A", "A_padding"))
+  df2.select("A", "A_padding", "A_padded").show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+23/11/01 23:41:01 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
++---------+---------+------------+
+|        A|A_padding|    A_padded|
++---------+---------+------------+
+|   [1, 2]|   [0, 0]|[1, 2, 0, 0]|
+|[4, 5, 6]|      [0]|[4, 5, 6, 0]|
++---------+---------+------------+
+
++---------+---------+------------+
+|        A|A_padding|    A_padded|
++---------+---------+------------+
+|   [1, 2]|   [0, 0]|[1, 2, 0, 0]|
+|[4, 5, 6]|      [0]|[4, 5, 6, 0]|
++---------+---------+------------+
+#+end_example
+** To sum two arrays elementwise using "element_at"
+#+header: :session set-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("A", T.ArrayType(T.IntegerType()), True),
+          T.StructField("B", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [([1, 2], [2, 3, 4, 5]),
+          ([4, 5, 6], [2, 3, 4, 5])]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df = df.withColumn("A_padding", F.array_repeat(F.lit(fill_value), F.lit(n) - F.size("A")))
+  df = df.withColumn("A_padded", F.concat("A", "A_padding"))
+  df = df.withColumn("AB_sum", F.expr('transform(A_padded, (element, index) -> element + element_at(B, index + 1))'))
+  df.select("A", "A_padded", "B", "AB_sum").show()
+#+END_SRC
+
+#+RESULTS:
+: +---------+------------+------------+-------------+
+: |        A|    A_padded|           B|       AB_sum|
+: +---------+------------+------------+-------------+
+: |   [1, 2]|[1, 2, 0, 0]|[2, 3, 4, 5]| [3, 5, 4, 5]|
+: |[4, 5, 6]|[4, 5, 6, 0]|[2, 3, 4, 5]|[6, 8, 10, 5]|
+: +---------+------------+------------+-------------+
+** To sum two arrays using "arrays_zip"
+#+header: :session set-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("A", T.ArrayType(T.IntegerType()), True),
+          T.StructField("B", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [([1, 2], [2, 3, 4, 5]),
+          ([4, 5, 6], [2, 3, 4, 5])]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df = df.withColumn("A_padding", F.array_repeat(F.lit(fill_value), F.lit(n) - F.size("A")))
+  df = df.withColumn("A_padded", F.concat("A", "A_padding"))
+  df = df.withColumn("AB_sum", F.expr("transform(arrays_zip(A_padded, B), x -> x.A_padded + x.B)"))
+  df.select("A", "A_padded", "B", "AB_sum").show()
+#+END_SRC
+
+#+RESULTS:
+: +---------+------------+------------+-------------+
+: |        A|    A_padded|           B|       AB_sum|
+: +---------+------------+------------+-------------+
+: |   [1, 2]|[1, 2, 0, 0]|[2, 3, 4, 5]| [3, 5, 4, 5]|
+: |[4, 5, 6]|[4, 5, 6, 0]|[2, 3, 4, 5]|[6, 8, 10, 5]|
+: +---------+------------+------------+-------------+
+** To find mode of an array (most common element)
+#+header: :session array-ops :async yes
+#+BEGIN_SRC python :results output
+  from collections import Counter
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("A", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [([1, 2, 2, 4],),
+          ([4, 5, 6, 7],),
+          ([1, 1, 2, 2],)]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  @F.udf
+  def udf_mode(x):
+      return Counter(x).most_common(1)[0][0]
+
+  df = df.withColumn("mode", udf_mode("A"))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+23/11/02 00:09:52 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+23/11/02 00:09:53 WARN Utils: Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
++------------+----+
+|           A|mode|
++------------+----+
+|[1, 2, 2, 4]|   2|
+|[4, 5, 6, 7]|   4|
+|[1, 1, 2, 2]|   1|
++------------+----+
+#+end_example
+
+** To calculate difference of two consecutive elements in an array
+#+header: :session set-ops :async yes
+#+BEGIN_SRC python :results output
+  import numpy as np
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("id", T.StringType(), True),
+          T.StructField("values", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [("A", [4, 1, 0, 2]),
+          ("B", [1, 0, 3, 1])]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  @F.udf(returnType=T.ArrayType(T.IntegerType()))
+  def diff_of_two_consecutive_elements(x):
+      return np.ediff1d(np.array(x)).tolist()
+
+  df = df.withColumn("diff", diff_of_two_consecutive_elements(F.col("values")))
+  df.show()
+  df.printSchema()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+23/10/26 17:26:48 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+23/10/26 17:26:49 WARN Utils: Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
++---+------------+-----------+
+| id|      values|       diff|
++---+------------+-----------+
+|  A|[4, 1, 0, 2]|[-3, -1, 2]|
+|  B|[1, 0, 3, 1]|[-1, 3, -2]|
++---+------------+-----------+
+
+root
+ |-- id: string (nullable = true)
+ |-- values: array (nullable = true)
+ |    |-- element: integer (containsNull = true)
+ |-- diff: array (nullable = true)
+ |    |-- element: integer (containsNull = true)
+#+end_example
+
+** To apply a function to every element of an array
+#+BEGIN_SRC python :session set-ops :async yes :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("words_with_suffixes", T.ArrayType(T.StringType()), True)
+      ]
+  )
+  data = [(["pen_10", "note_11", "bottle_12"],), (["apple_13", "orange_14", "lemon_15"],),]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df = df.withColumn("words", F.transform("words_with_suffixes", lambda x: F.split(x, "_").getItem(0)))
+  df = df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+: +-------------------------------+----------------------+
+: |words_with_suffixes            |words                 |
+: +-------------------------------+----------------------+
+: |[pen_10, note_11, bottle_12]   |[pen, note, bottle]   |
+: |[apple_13, orange_14, lemon_15]|[apple, orange, lemon]|
+: +-------------------------------+----------------------+
+** To deduplicate elements in an array (find unique/distinct elements)
+#+BEGIN_SRC python :session set-ops :async yes :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("words", T.ArrayType(T.StringType()), True)
+      ]
+  )
+  data = [(["pen", "note", "pen"],), (["apple", "apple", "lemon"],),]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df = df.withColumn("unique_words", F.array_distinct("words"))
+  df = df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+: +---------------------+--------------+
+: |words                |unique_words  |
+: +---------------------+--------------+
+: |[pen, note, pen]     |[pen, note]   |
+: |[apple, apple, lemon]|[apple, lemon]|
+: +---------------------+--------------+
+** To create a map (dictionary) from two arrays (one with keys, one with values)
+#+BEGIN_SRC python :session set-ops :async yes :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("keys", T.ArrayType(T.IntegerType()), True),
+          T.StructField("values", T.ArrayType(T.StringType()), True),
+      ]
+  )
+  data = [([1, 2, 3], ["A", "B", "C"])]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df = df.withColumn("map_kv", F.map_from_arrays("keys", "values"))
+  df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+: +---------+---------+------------------------+
+: |keys     |values   |map_kv                  |
+: +---------+---------+------------------------+
+: |[1, 2, 3]|[A, B, C]|{1 -> A, 2 -> B, 3 -> C}|
+: +---------+---------+------------------------+
+
+** To calculate mean of an array
+#+header: :session set-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("values", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [([1, 2],),
+          ([4, 5, 6],)]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df = df.withColumn("mean", F.aggregate(
+            "values",                           # column
+            F.lit(0),                                  # initialValue
+            lambda acc, x: acc + x,                    # merge operation
+            lambda acc: acc / F.size(F.col("values")), # finish
+        ))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+: +---------+----+
+: |   values|mean|
+: +---------+----+
+: |   [1, 2]| 1.5|
+: |[4, 5, 6]| 5.0|
+: +---------+----+
+** To find out whether an array has any negative elements
+#+header: :session set-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("values", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [([1, -2],),
+          ([4, 5, 6],)]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df = df.withColumn("any_negative", F.exists("values", lambda x: x < 0))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+: +---------+------------+
+: |   values|any_negative|
+: +---------+------------+
+: |  [1, -2]|        true|
+: |[4, 5, 6]|       false|
+: +---------+------------+
+** To convert elements of an array to columns
+#+header: :session set-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("A", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [([1, 2, 3, 4],),
+          ([5, 6, 7],)]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df = df.withColumn("first", F.col("A").getItem(0))
+  df.select("A", "first", *[F.col("A").getItem(k).alias(f"element_{k+1}") for k in range(1,4)]).show()
+#+END_SRC
+
+#+RESULTS:
+: +------------+-----+---------+---------+---------+
+: |           A|first|element_2|element_3|element_4|
+: +------------+-----+---------+---------+---------+
+: |[1, 2, 3, 4]|    1|        2|        3|        4|
+: |   [5, 6, 7]|    5|        6|        7|     null|
+: +------------+-----+---------+---------+---------+
+
+** To find location of the first occurence of an element in an array
+#+header: :session set-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  import pandas as pd
+  from pyspark.sql import SparkSession
+  import numpy as np
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("values", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [([1, 7, 5],),
+          ([7, 4, 7],)]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  df = df.withColumn("position", F.array_position(F.col("values"), 7))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+: +---------+--------+
+: |   values|position|
+: +---------+--------+
+: |[1, 7, 5]|       2|
+: |[7, 4, 7]|       1|
+: +---------+--------+
+
+** To calculate moving difference of two consecutive elements in an array
+#+header: :session set-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  import pandas as pd
+  from pyspark.sql import SparkSession
+  import numpy as np
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("values", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [([1, 2, 5],),
+          ([4, 4, 6],)]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  @F.pandas_udf(T.ArrayType(T.IntegerType()))
+  def diff2e(x: pd.Series) -> pd.Series:
+      return x.apply(lambda x: (x[1:] - x[:-1]))
+
+  @F.udf(returnType=T.ArrayType(T.IntegerType()))
+  def diff_of_two_consecutive_elements(x):
+      return np.ediff1d(np.array(x)).tolist()
+
+  df = df.withColumn("diff2e", diff2e(F.col("values")))
+  df = df.withColumn("ediff1d", diff_of_two_consecutive_elements(F.col("values")))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+: +---------+------+-------+
+: |   values|diff2e|ediff1d|
+: +---------+------+-------+
+: |[1, 2, 5]|[1, 3]| [1, 3]|
+: |[4, 4, 6]|[0, 2]| [0, 2]|
+: +---------+------+-------+
+
+* Text processing
+** To remove prefix from a string using a UDF
+#+header: :session text-proc :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("text", T.StringType(), True),
+      ]
+  )
+  data = [("id_orange",),
+          ("apple",)]
+  df = spark.createDataFrame(schema=schema, data=data)
+  remove_prefix = F.udf(lambda x: x[3:] if x[:3] == "id_" else x, T.StringType())
+  df = df.withColumn("no_prefix", remove_prefix(F.col("text")))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+: +---------+---------+
+: |     text|no_prefix|
+: +---------+---------+
+: |id_orange|   orange|
+: |    apple|    apple|
+: +---------+---------+
+
+** To split a string into letters (characters) using regex
+#+BEGIN_SRC python :session text-proc :async yes :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("String", T.StringType(), True)
+      ]
+  )
+  data = [["This is"]]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df.select('String', F.split('String', '(?!$)').alias("Characters")).show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++-------+---------------------+
+|String |Characters           |
++-------+---------------------+
+|This is|[T, h, i, s,  , i, s]|
++-------+---------------------+
+#+end_example
+** To split a string into letters (characters) using split function
+#+BEGIN_SRC python :session :async yes :results output
+  fsplit = F.expr("split(String, '')")
+  df.select('String', fsplit.alias("Characters")).show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+: Using split function:
+: +-------+---------------------+
+: |String |Characters           |
+: +-------+---------------------+
+: |This is|[T, h, i, s,  , i, s]|
+: +-------+---------------------+
+** To split a string into letters (characters) and remove last character
+#+BEGIN_SRC python :session hello :async yes :results output
+  print("Using split function and remove last character:")
+  fsplit = "split(String, '')"
+  fsplit = F.expr(f'slice({fsplit}, 1, size({fsplit}) - 1)')
+  df.select('String', fsplit.alias("Characters")).show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+: Using split function and remove last character:
+: +-------+------------------+
+: |String |Characters        |
+: +-------+------------------+
+: |This is|[T, h, i, s,  , i]|
+: +-------+------------------+
+** To concatenate columns with strings using a separator
+#+header: :session text-proc :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("Str1", T.StringType(), True),
+          T.StructField("Str2", T.StringType(), True)
+      ]
+  )
+  data = [("This is", "a string"),
+          ("on a", "different row")]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df = df.withColumn("Str_Concat", F.concat_ws( "_", "Str1", "Str2"))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+23/07/28 17:44:46 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+23/07/28 17:44:47 WARN Utils: Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
++-------+-------------+------------------+
+|   Str1|         Str2|        Str_Concat|
++-------+-------------+------------------+
+|This is|     a string|  This is_a string|
+|   on a|different row|on a_different row|
++-------+-------------+------------------+
+#+end_example
+** To append a string to all values in a column
+#+header: :session text-proc :async yes
+#+BEGIN_SRC python :results output
+  df = df.withColumn("Str1_with_prefix", F.concat(F.lit("Prefix_"), "Str1"))
+  df.select("Str1", "Str1_with_prefix").show()
+#+END_SRC
+
+#+RESULTS:
+: +-------+----------------+
+: |   Str1|Str1_with_prefix|
+: +-------+----------------+
+: |This is|  Prefix_This is|
+: |   on a|     Prefix_on a|
+: +-------+----------------+
+
+** To convert Pandas dataframe to tabular format
+#+name: pd2org
+#+begin_src python :var df="df" :exports none
+  return f"return tabulate({df}, headers={df}.columns, tablefmt='orgtbl')"
+#+end_src
+
+#+RESULTS: pd2org
+: return tabulate(df, headers=df.columns, tablefmt='orgtbl')
+
+#+header: :prologue from tabulate import tabulate
+#+header: :noweb strip-export
+#+begin_src python :results value raw :exports both
+  import pandas as pd
+  df = pd.DataFrame({
+      "a": [1,2,3],
+      "b": [4,5,6]
+  })
+  #print(tabulate.tabulate(df, headers=df.columns, tablefmt="orgtbl"))
+  <<pd2org("df")>>
+#+end_src
+
+#+RESULTS:
+|   | a | b |
+|---+---+---|
+| 0 | 1 | 4 |
+| 1 | 2 | 5 |
+| 2 | 3 | 6 |
+
+* Time operations
+** To calculate cumulative sum of a column
+#+BEGIN_SRC python :session time-proc :async yes :results output
+  import pandas as pd
+  from pyspark.sql import Window
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  df = pd.DataFrame({'time': [0, 1, 2, 3, 4, 5],
+                     'value': [False, False, True, False, True, True]})
+
+  df = spark.createDataFrame(df)
+  df = df.withColumn("cum_n_true", F.sum((F.col("value") == True).cast("int")).over(Window.orderBy(F.col("time").asc())))
+  df = df.withColumn("cum_n_false", F.sum((F.col("value") == False).cast("int")).over(Window.orderBy(F.col("time").asc())))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++----+-----+----------+-----------+
+|time|value|cum_n_true|cum_n_false|
++----+-----+----------+-----------+
+|   0|false|         0|          1|
+|   1|false|         0|          2|
+|   2| true|         1|          2|
+|   3|false|         1|          3|
+|   4| true|         2|          3|
+|   5| true|         3|          3|
++----+-----+----------+-----------+
+#+end_example
+* Numerical operations
+** To find percentage of a column
+#+header: :session num-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("Product", T.StringType(), True),
+          T.StructField("Quantity", T.IntegerType(), True),
+      ]
+  )
+  data = [("Laptop", 12),
+          ("Monitor", 7),
+          ("Mouse", 8),
+          ("Keyboard", 9)]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  df = df.withColumn("%", F.round(F.col("Quantity")/F.sum("Quantity").over(Window.partitionBy())*100, 2))
+  df.select("Product", "Quantity", "%").orderBy(F.desc("Quantity")).show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+23/09/19 16:29:26 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+23/09/19 16:29:27 WARN Utils: Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
+23/09/19 16:29:30 WARN WindowExec: No Partition Defined for Window operation! Moving all data to a single partition, this can cause serious performance degradation.
+23/09/19 16:29:30 WARN WindowExec: No Partition Defined for Window operation! Moving all data to a single partition, this can cause serious performance degradation.
+23/09/19 16:29:30 WARN WindowExec: No Partition Defined for Window operation! Moving all data to a single partition, this can cause serious performance degradation.
+23/09/19 16:29:31 WARN WindowExec: No Partition Defined for Window operation! Moving all data to a single partition, this can cause serious performance degradation.
+23/09/19 16:29:31 WARN WindowExec: No Partition Defined for Window operation! Moving all data to a single partition, this can cause serious performance degradation.
++--------+--------+-----+
+| Product|Quantity|    %|
++--------+--------+-----+
+|  Laptop|      12|33.33|
+|Keyboard|       9| 25.0|
+|   Mouse|       8|22.22|
+| Monitor|       7|19.44|
++--------+--------+-----+
+#+end_example
+** To find percentage of a column within a group using a window
+#+header: :session num-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("Location", T.StringType(), True),
+          T.StructField("Product", T.StringType(), True),
+          T.StructField("Quantity", T.IntegerType(), True),
+      ]
+  )
+  data = [("Home", "Laptop", 12),
+          ("Home", "Monitor", 7),
+          ("Home", "Mouse", 8),
+          ("Home", "Keyboard", 9),
+          ("Office", "Laptop", 23),
+          ("Office", "Monitor", 10),
+          ("Office", "Mouse", 9)]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  df = df.withColumn("%", F.round(F.col("Quantity")/F.sum("Quantity").over(Window.partitionBy("Location"))*100, 2))
+  df.select("Location", "Product", "Quantity", "%").orderBy(F.desc("Location"), F.desc("Quantity")).show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++--------+--------+--------+-----+
+|Location| Product|Quantity|    %|
++--------+--------+--------+-----+
+|  Office|  Laptop|      23|54.76|
+|  Office| Monitor|      10|23.81|
+|  Office|   Mouse|       9|21.43|
+|    Home|  Laptop|      12|33.33|
+|    Home|Keyboard|       9| 25.0|
+|    Home|   Mouse|       8|22.22|
+|    Home| Monitor|       7|19.44|
++--------+--------+--------+-----+
+#+end_example
+** To find percentage of a column within a group using groupBy() and a join
+#+header: :session num-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("Location", T.StringType(), True),
+          T.StructField("Product", T.StringType(), True),
+          T.StructField("Quantity", T.IntegerType(), True),
+      ]
+  )
+  data = [("Home", "Laptop", 12),
+          ("Home", "Monitor", 7),
+          ("Home", "Mouse", 8),
+          ("Home", "Keyboard", 9),
+          ("Office", "Laptop", 23),
+          ("Office", "Monitor", 10),
+          ("Office", "Mouse", 9)]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  df_sum = df.groupBy("Location").agg(F.sum("Quantity").alias("Total_Quantity"))
+  df = df.join(df_sum, on="Location").withColumn("%", F.round(F.col("Quantity")/F.col("Total_Quantity")*100, 2))
+  df.select("Location", "Product", "Quantity", "%").orderBy(F.desc("Location"), F.desc("Quantity")).show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++--------+--------+--------+-----+
+|Location| Product|Quantity|    %|
++--------+--------+--------+-----+
+|  Office|  Laptop|      23|54.76|
+|  Office| Monitor|      10|23.81|
+|  Office|   Mouse|       9|21.43|
+|    Home|  Laptop|      12|33.33|
+|    Home|Keyboard|       9| 25.0|
+|    Home|   Mouse|       8|22.22|
+|    Home| Monitor|       7|19.44|
++--------+--------+--------+-----+
+
+#+end_example
+
+** To find maximum value of a column
+#+header: :session num-ops :async yes
+#+BEGIN_SRC python :results output
+  max_val = df.select("Quantity").rdd.max()[0]
+  print(f"Maximum value of Quantity: {max_val}")
+#+END_SRC
+
+#+RESULTS:
+: Maximum value of Quantity: 12
+
+** To add a column with count of elements per group
+#+header: :session num-ops :async yes
+#+BEGIN_SRC python :results output
+  df = df.withColumn("count_per_group", F.count(F.lit(1)).over(Window.partitionBy(F.col("Location"))))
+  df.show()
+#+END_SRC
+
+* Dataframe join operations
+** Test join on different columns
+#+header: :session num-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+
+  import random
+  import uuid
+
+  rnd = random.Random()
+  rnd.seed(1) # NOTE: Of course don't use a static seed in production
+
+  #random_uuid = uuid.UUID(int=rnd.getrandbits(128), version=4)
+  #print(random_uuid)
+
+  #udf_generate_uuid = F.udf(lambda: uuid.uuid4().__str__(), T.StringType())
+  udf_generate_uuid = F.udf(lambda: uuid.UUID(int=rnd.getrandbits(128), version=4).__str__(), T.StringType())
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("Site", T.StringType(), True),
+      ]
+  )
+  data = [["Home"],
+          ["Office"]
+          ]
+  df_site = spark.createDataFrame(schema=schema, data=data)
+  df_site = df_site.withColumn("UUID", udf_generate_uuid())
+
+  schema = T.StructType(
+      [
+          T.StructField("Location", T.StringType(), True),
+          T.StructField("Product", T.StringType(), True),
+          T.StructField("Quantity", T.IntegerType(), True),
+      ]
+  )
+  data = [("Home", "Laptop", 12),
+          ("Home", "Monitor", 7),
+          ("Home", "Mouse", 8),
+          ("Home", "Keyboard", 9),
+          ("Office", "Laptop", 23),
+          ("Office", "Monitor", 10),
+          ("Office", "Mouse", 9)]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  df = df.join(df_site, df["Location"] == df_site["Site"])
+  #df = df.join(df_site, df.select("Location") == df_site.select("Site"))
+  df.show(truncate=False)
+  df = df.join(df_site)
+  #df = df.join(df_site, df.select("Location") == df_site.select("Site"))
+  df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++--------+--------+--------+------+------------------------------------+
+|Location|Product |Quantity|Site  |UUID                                |
++--------+--------+--------+------+------------------------------------+
+|Home    |Laptop  |12      |Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|
+|Home    |Monitor |7       |Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|
+|Home    |Mouse   |8       |Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|
+|Home    |Keyboard|9       |Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|
+|Office  |Laptop  |23      |Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|
+|Office  |Monitor |10      |Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|
+|Office  |Mouse   |9       |Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|
++--------+--------+--------+------+------------------------------------+
+
++--------+--------+--------+------+------------------------------------+------+------------------------------------+
+|Location|Product |Quantity|Site  |UUID                                |Site  |UUID                                |
++--------+--------+--------+------+------------------------------------+------+------------------------------------+
+|Home    |Laptop  |12      |Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|
+|Home    |Monitor |7       |Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|
+|Home    |Mouse   |8       |Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|
+|Home    |Keyboard|9       |Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|
+|Office  |Laptop  |23      |Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|
+|Office  |Monitor |10      |Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|
+|Office  |Mouse   |9       |Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|
+|Home    |Laptop  |12      |Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|
+|Home    |Monitor |7       |Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|
+|Home    |Mouse   |8       |Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|
+|Home    |Keyboard|9       |Home  |cd613e30-d8f1-4adf-91b7-584a2265b1f5|Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|
+|Office  |Laptop  |23      |Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|
+|Office  |Monitor |10      |Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|
+|Office  |Mouse   |9       |Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|Office|1e2feb89-414c-443c-9027-c4d1c386bbc4|
++--------+--------+--------+------+------------------------------------+------+------------------------------------+
+#+end_example
+** To drop one of the duplicate columns after join
+#+header: :session num-ops :async yes
+#+BEGIN_SRC python :results output
+  from pyspark.sql import Row
+  from pyspark.sql import SparkSession
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  df_1 = spark.createDataFrame([
+    Row(id=1, value="A1"),
+    Row(id=1, value="B1"),
+    Row(id=1, value="C1"),
+    Row(id=2, value="A1"),
+    Row(id=2, value="X1"),
+    Row(id=2, value="Y1")]
+  )
+  df_2 = spark.createDataFrame([
+    Row(id=1, updated="A2"),
+    Row(id=1, updated="B1"),
+    Row(id=1, updated="C1"),
+    Row(id=2, updated="A1"),
+    Row(id=2, updated="X1"),
+    Row(id=2, updated="Y1")]
+  )
+
+  df_1.join(df_2, on=[df_1["id"] == df_2["id"], df_1["value"] == df_2["updated"]], how="full").show(truncate=False)
+  df_1.join(df_2, on=[df_1["id"] == df_2["id"], df_1["value"] == df_2["updated"]], how="full").drop(df_2["id"]).show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++----+-----+----+-------+
+|id  |value|id  |updated|
++----+-----+----+-------+
+|1   |A1   |null|null   |
+|null|null |1   |A2     |
+|1   |B1   |1   |B1     |
+|1   |C1   |1   |C1     |
+|2   |A1   |2   |A1     |
+|2   |X1   |2   |X1     |
+|2   |Y1   |2   |Y1     |
++----+-----+----+-------+
+
++----+-----+-------+
+|id  |value|updated|
++----+-----+-------+
+|1   |A1   |null   |
+|null|null |A2     |
+|1   |B1   |B1     |
+|1   |C1   |C1     |
+|2   |A1   |A1     |
+|2   |X1   |X1     |
+|2   |Y1   |Y1     |
++----+-----+-------+
+#+end_example
+
+* Aggregation and maps
+** To group by and aggregate into a map using map_from_entries()
+#+header: :session num-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  from pyspark.sql import Row
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  df = spark.createDataFrame([
+    Row(id=1, key='a', value="A1"),
+    Row(id=1, key='b', value="B1"),
+    Row(id=1, key='c', value="C1"),
+    Row(id=2, key='a', value="A1"),
+    Row(id=2, key='x', value="X1"),
+    Row(id=2, key='y', value="Y1")]
+  )
+
+  df.show(truncate=False)
+  df.groupBy("id").agg(F.map_from_entries(F.collect_list(
+            F.struct("key", "value"))).alias("key_value")
+  ).show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++---+---+-----+
+|id |key|value|
++---+---+-----+
+|1  |a  |A1   |
+|1  |b  |B1   |
+|1  |c  |C1   |
+|2  |a  |A1   |
+|2  |x  |X1   |
+|2  |y  |Y1   |
++---+---+-----+
+
++---+---------------------------+
+|id |key_value                  |
++---+---------------------------+
+|1  |{a -> A1, b -> B1, c -> C1}|
+|2  |{a -> A1, x -> X1, y -> Y1}|
++---+---------------------------+
+#+end_example
+** To group by and aggregate into a map using UDF
+#+header: :session num-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  from pyspark.sql import Row
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+  from pyspark.sql.types import MapType, StringType
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  df = spark.createDataFrame([
+    Row(id=1, key='a', value="A1"),
+    Row(id=1, key='b', value="B1"),
+    Row(id=1, key='c', value="C1"),
+    Row(id=2, key='a', value="A1"),
+    Row(id=2, key='x', value="X1"),
+    Row(id=2, key='y', value="Y1")]
+  )
+
+  df.show(truncate=False)
+
+  @F.udf(returnType=MapType(StringType(), StringType()))
+  def map_array(column):
+      return dict(column)
+
+  (df.groupBy("id")
+     .agg(F.collect_list(F.struct("key", "value")).alias("key_value"))
+     .withColumn('key_value', map_array('key_value'))
+   .show(truncate=False))
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+23/10/20 13:18:48 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+23/10/20 13:18:48 WARN Utils: Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
++---+---+-----+
+|id |key|value|
++---+---+-----+
+|1  |a  |A1   |
+|1  |b  |B1   |
+|1  |c  |C1   |
+|2  |a  |A1   |
+|2  |x  |X1   |
+|2  |y  |Y1   |
++---+---+-----+
+
++---+---------------------------+
+|id |key_value                  |
++---+---------------------------+
+|1  |{a -> A1, b -> B1, c -> C1}|
+|2  |{x -> X1, a -> A1, y -> Y1}|
++---+---------------------------+
+#+end_example
+
+** To agregate over multiple columns and sum values of dictionaries
+#+header: :session num-ops :async yes
+#+BEGIN_SRC python :results output
+  from pyspark.sql.types import MapType, StringType, StructType, StructField, DoubleType
+  import pyspark.sql.functions as F
+  from pyspark.sql import SparkSession
+
+  df_schema = StructType([StructField('clid', StringType(), True),
+                          StructField('coef_1', MapType(StringType(), DoubleType(), True), False),
+                          StructField('coef_2', MapType(StringType(), DoubleType(), True), False),
+                          StructField('coef_3', MapType(StringType(), DoubleType(), True), False)])
+  df_data = [["X", {'B': 0.4, 'C': 0.4}, {'B': 0.33, 'C': 0.5}, {'A': 0.5, 'C': 0.33}],
+             ["Y", {'B': 0.67, 'C': 0.33}, {'B': 0.85}, {'A': 0.4, 'C': 0.57}],
+             ]
+  spark = SparkSession.builder\
+          .appName("Parse DataFrame Schema")\
+          .getOrCreate()
+  df = spark.createDataFrame(data=df_data, schema=df_schema)
+
+  df = df.withColumn("coef_total", F.col("coef_1"))
+  for i in range(2,4):
+      df = df.withColumn("coef_total", F.map_zip_with("coef_total", f"coef_{i}",
+                        lambda k, v1, v2: F.when(v1.isNull(), 0).otherwise(v1) + F.when(v2.isNull(), 0).otherwise(v2)))
+  df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+: 23/10/20 13:21:22 WARN SparkSession: Using an existing Spark session; only runtime SQL configurations will take effect.
+: +----+----------------------+---------------------+---------------------+----------------------------------------------+
+: |clid|coef_1                |coef_2               |coef_3               |coef_total                                    |
+: +----+----------------------+---------------------+---------------------+----------------------------------------------+
+: |X   |{B -> 0.4, C -> 0.4}  |{B -> 0.33, C -> 0.5}|{A -> 0.5, C -> 0.33}|{B -> 0.73, C -> 1.23, A -> 0.5}              |
+: |Y   |{B -> 0.67, C -> 0.33}|{B -> 0.85}          |{A -> 0.4, C -> 0.57}|{B -> 1.52, C -> 0.8999999999999999, A -> 0.4}|
+: +----+----------------------+---------------------+---------------------+----------------------------------------------+
+
+* Sampling rows
+** To sample rows
+#+header: :session num-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("index", T.IntegerType(), True),
+          T.StructField("value", T.StringType(), True),
+      ]
+  )
+  data = [(1, "Home"),
+          (2, "School"),
+          (3, "Home"),
+          (4, "Home"),
+          (5, "Office"),
+          (6, "Office"),
+          (7, "Office"),
+          (8, "Mall"),
+          (9, "Mall"),
+          (10, "School")]
+  df = spark.createDataFrame(schema=schema, data=data).repartition(3)
+  df = df.withColumn("partition", F.spark_partition_id())
+
+  df.orderBy("index").show()
+  df.sample(fraction=0.5, seed=1).orderBy("index").show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++-----+------+---------+
+|index| value|partition|
++-----+------+---------+
+|    1|  Home|        1|
+|    2|School|        0|
+|    3|  Home|        0|
+|    4|  Home|        2|
+|    5|Office|        2|
+|    6|Office|        2|
+|    7|Office|        1|
+|    8|  Mall|        0|
+|    9|  Mall|        1|
+|   10|School|        0|
++-----+------+---------+
+
++-----+------+---------+
+|index| value|partition|
++-----+------+---------+
+|    1|  Home|        1|
+|    3|  Home|        0|
+|    5|Office|        2|
+|    7|Office|        1|
+|    8|  Mall|        0|
++-----+------+---------+
+#+end_example
+
+* UUID generation
+** To generate a UUID for every row
+#+header: :session num-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  import random
+  import uuid
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("Name", T.StringType(), True),
+      ]
+  )
+  data = [["Alice"],
+          ["Bon"],
+          ["John"],
+          ["Cecile"]
+          ]
+  df = spark.createDataFrame(schema=schema, data=data).repartition(2)
+
+  def _generate_uuid(uuid_gen, v=10):
+      def _replace_byte(value: int, byte: int):
+          byte = byte & 0xF
+          bit_shift = 76
+          mask = ~(0xF << bit_shift)
+          return value & mask | (byte << bit_shift)
+
+      uuid_ = uuid_gen.generate()
+      return uuid.UUID(int=(_replace_byte(uuid_.int, v)))
+
+  class RandomDistributedUUIDGenerator:
+      def generate(self):
+          return uuid.uuid4()
+
+  class SeedBasedUUIDGenerator:
+      def __init__(self, seed):
+          self.rnd = random.Random(seed)
+
+      def generate(self):
+          return uuid.UUID(int=self.rnd.getrandbits(128), version=4)
+
+  gen = RandomDistributedUUIDGenerator()
+  udf_generate_uuid = F.udf(lambda: _generate_uuid(gen).__str__(), T.StringType())
+  df = df.withColumn("UUID_random_distributed", udf_generate_uuid())
+
+  seed_for_rng = 1
+  gen = SeedBasedUUIDGenerator(seed_for_rng)
+  udf_generate_uuid = F.udf(lambda: _generate_uuid(gen).__str__(), T.StringType())
+  df = df.withColumn("UUID_seed_based", udf_generate_uuid())
+  print("The dataframe resides in two partitions. Seed-based random UUID generator uses the same seed on both partitions, yielding identical values.")
+  df.show(truncate=False)
+#+END_SRC
+#+RESULTS:
+: The dataframe resides in two partitions. Seed-based random UUID generator uses the same seed on both partitions, yielding identical values.
+: +------+------------------------------------+------------------------------------+
+: |Name  |UUID_random_distributed             |UUID_seed_based                     |
+: +------+------------------------------------+------------------------------------+
+: |John  |276d6b7e-7d04-a2c3-839d-cd3780849337|cd613e30-d8f1-aadf-91b7-584a2265b1f5|
+: |Bon   |2840d844-48f0-af32-ae11-6e1e3bf40423|1e2feb89-414c-a43c-9027-c4d1c386bbc4|
+: |Cecile|24de13ac-e1fe-a6e7-b84a-e856e2f39f79|cd613e30-d8f1-aadf-91b7-584a2265b1f5|
+: |Alice |d5fb5521-48c3-a65a-abd8-9170e540a6a1|1e2feb89-414c-a43c-9027-c4d1c386bbc4|
+: +------+------------------------------------+------------------------------------+
+
+* To-Do
