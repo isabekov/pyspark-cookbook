@@ -1,3 +1,17 @@
+#+TITLE: PySpark Cookbook
+#+AUTHOR: Altynbek Isabekov
+#+EMAIL: aisabekov@ku.edu.tr
+#+LANGUAGE: en
+#+PROPERTY: header-args:emacs-lisp :results silent
+#+PROPERTY: header-args:python :results output :exports both :eval no-export
+#+OPTIONS: ^:nil
+#+OPTIONS: html-style:nil
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="src/readtheorg_theme/css/htmlize.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="src/readtheorg_theme/css/readtheorg.css"/>
+#+HTML_HEAD: <script type="text/javascript" src="src/lib/js/jquery.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="src/lib/js/bootstrap.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="src/lib/js/jquery.stickytableheaders.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="src/readtheorg_theme/js/readtheorg.js"></script>
 * Introduction
 ** To create an empty dataframe
 #+BEGIN_SRC python :session basics :async yes :results output
@@ -501,7 +515,7 @@ Dataframe with dropped duplicate rows:
 |  1|  Home|   a house|
 +---+------+----------+
 
-Dataframe with dropped duplicates in columns 'key' and 'value'
+Dataframe with dropped duplicates in columns 'key' and 'value':
 +---+------+----------+
 |key|value |comment   |
 +---+------+----------+
@@ -1309,6 +1323,66 @@ root
 : |[4, 4, 6]|[0, 2]| [0, 2]|
 : +---------+------+-------+
 
+** To slice an array
+#+header: :session set-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  import pandas as pd
+  from pyspark.sql import SparkSession
+  import numpy as np
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("values", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [([1, 7, 5, 2],),
+          ([6, 4, 7, 3],)]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  df = df.withColumn("values[1:3]", F.slice("values", start=2, length=2))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+: +------------+-----------+
+: |      values|values[1:3]|
+: +------------+-----------+
+: |[1, 7, 5, 2]|     [7, 5]|
+: |[6, 4, 7, 3]|     [4, 7]|
+: +------------+-----------+
+
+** To slice an array dynamically
+#+header: :session set-ops :async yes
+#+BEGIN_SRC python :results output
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  import pandas as pd
+  from pyspark.sql import SparkSession
+  import numpy as np
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("values", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [([1, 7, 5],),
+          ([6, 4, 7, 3],)]
+  df = spark.createDataFrame(schema=schema, data=data)
+  start_idx = 2
+  df = df.withColumn("values[1:]", F.slice("values", start=2, length=(F.size("values") - F.lit(start_idx - 1))))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+: +------------+----------+
+: |      values|values[1:]|
+: +------------+----------+
+: |   [1, 7, 5]|    [7, 5]|
+: |[6, 4, 7, 3]| [4, 7, 3]|
+: +------------+----------+
+
 * Text processing
 ** To remove prefix from a string using a UDF
 #+header: :session text-proc :async yes
@@ -1364,12 +1438,25 @@ root
 #+end_example
 ** To split a string into letters (characters) using split function
 #+BEGIN_SRC python :session :async yes :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("String", T.StringType(), True)
+      ]
+  )
+  data = [["This is"]]
+  df = spark.createDataFrame(schema=schema, data=data)
   fsplit = F.expr("split(String, '')")
   df.select('String', fsplit.alias("Characters")).show(truncate=False)
 #+END_SRC
 
 #+RESULTS:
-: Using split function:
+: Setting default log level to "WARN".
+: To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+: 24/02/03 09:44:29 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
 : +-------+---------------------+
 : |String |Characters           |
 : +-------+---------------------+
@@ -1377,6 +1464,17 @@ root
 : +-------+---------------------+
 ** To split a string into letters (characters) and remove last character
 #+BEGIN_SRC python :session hello :async yes :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("String", T.StringType(), True)
+      ]
+  )
+  data = [["This is_"]]
+  df = spark.createDataFrame(schema=schema, data=data)
   print("Using split function and remove last character:")
   fsplit = "split(String, '')"
   fsplit = F.expr(f'slice({fsplit}, 1, size({fsplit}) - 1)')
@@ -1385,11 +1483,11 @@ root
 
 #+RESULTS:
 : Using split function and remove last character:
-: +-------+------------------+
-: |String |Characters        |
-: +-------+------------------+
-: |This is|[T, h, i, s,  , i]|
-: +-------+------------------+
+: +--------+---------------------+
+: |String  |Characters           |
+: +--------+---------------------+
+: |This is_|[T, h, i, s,  , i, s]|
+: +--------+---------------------+
 ** To concatenate columns with strings using a separator
 #+header: :session text-proc :async yes
 #+BEGIN_SRC python :results output
@@ -1497,6 +1595,33 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 |   5| true|         3|          3|
 +----+-----+----------+-----------+
 #+end_example
+** To convert Unix time stamp to human readable format
+#+BEGIN_SRC python :session time-proc :async yes :results output
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("timestamp", T.LongType(), True),
+      ]
+  )
+  data = [(1703224755,),
+          (1703285602,)]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+  df = df.withColumn("time_stamp_hrf", F.from_unixtime(F.col("timestamp")))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+: +-------------+-------------------+
+: |    timestamp|     time_stamp_hrf|
+: +-------------+-------------------+
+: |1703224755231|2023-12-22 06:59:15|
+: |1703285602802|2023-12-22 23:53:22|
+: +-------------+-------------------+
+
 * Numerical operations
 ** To find percentage of a column
 #+header: :session num-ops :async yes
@@ -1631,8 +1756,28 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 
 ** To find maximum value of a column
 #+header: :session num-ops :async yes
-#+BEGIN_SRC python :results output
-  max_val = df.select("Quantity").rdd.max()[0]
+#+BEGIN_SRC python :exports both
+  import pyspark.sql.functions as F
+  import  pyspark.sql.types as T
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("Location", T.StringType(), True),
+          T.StructField("Product", T.StringType(), True),
+          T.StructField("Quantity", T.IntegerType(), True),
+      ]
+  )
+  data = [("Home", "Laptop", 12),
+          ("Home", "Monitor", 7),
+          ("Home", "Mouse", 8),
+          ("Home", "Keyboard", 9),
+          ("Office", "Laptop", 23),
+          ("Office", "Monitor", 10),
+          ("Office", "Mouse", 9)]
+  df = spark.createDataFrame(schema=schema, data=data)
+  #df.show(truncate=False)  max_val = df.select("Quantity").rdd.max()[0]
   print(f"Maximum value of Quantity: {max_val}")
 #+END_SRC
 
@@ -2052,5 +2197,3 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 : |Cecile|24de13ac-e1fe-a6e7-b84a-e856e2f39f79|cd613e30-d8f1-aadf-91b7-584a2265b1f5|
 : |Alice |d5fb5521-48c3-a65a-abd8-9170e540a6a1|1e2feb89-414c-a43c-9027-c4d1c386bbc4|
 : +------+------------------------------------+------------------------------------+
-
-* To-Do
