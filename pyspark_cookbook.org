@@ -16,6 +16,25 @@
   return f"print({df_in}.toPandas().fillna('null').to_markdown(index=False, tablefmt='orgtbl') + '\\n')#"
 #+end_src
 
+#+name: txtblk
+#+begin_src python :var a="a" :exports none :results value raw :session none
+  return f";print(\"#+begin_src text\\n\" + {a} + \"\\n#+end_src\\n\")#"
+#+end_src
+
+#+name: txtblkstart
+#+begin_src python :exports none :results output raw :session none
+  print("#+begin_src text");
+#+end_src
+
+#+name: txtblkend
+#+begin_src python :exports none :results output raw :session none
+  ;print("#+end_src")#
+#+end_src
+
+#+name: tld
+#+begin_src python :exports none :results output raw :session none
+  ~
+#+end_src
 * Introduction
 ** To create an empty dataframe
 #+BEGIN_SRC python
@@ -78,7 +97,7 @@
 | key1 | value1 | value1    |
 | key2 | value2 | value2    |
 
-** To rename a column using withColumnRenamed()
+** To rename a column using ~.withColumnRenamed()~
 #+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
@@ -110,7 +129,7 @@ Modified dataframe:
 | key1      | value1      |
 | key2      | value2      |
 
-** To rename a column using withColumnsRenamed()
+** To rename a column using ~.withColumnsRenamed()~
 #+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
@@ -141,7 +160,7 @@ Modified dataframe:
 | key1      | value1      |
 | key2      | value2      |
 
-** To rename a column using "select"
+** To rename a column using ~.select()~
 #+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
@@ -282,7 +301,7 @@ Subset 'key', 'const' columns:
 | key1  |       1 |
 | key2  |       1 |
 
-** To add a column with a constant value using F.lit()
+** To add a column with a constant value using ~F.lit()~
 #+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
@@ -314,7 +333,7 @@ Modified dataframe:
 | key1  | value1  |               1 | string         |
 | key2  | value2  |               1 | string         |
 
-** To add a column with a constant value using "select"
+** To add a column with a constant value using ~.select()~
 #+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
@@ -487,7 +506,7 @@ Dataframe with dropped duplicates in columns 'key' and 'value':
 |     2 | School  | a building |
 |     3 | Home    | a house    |
 
-** To convert a column to a list using lambda function
+** To convert a column to a list using a lambda function
 #+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
@@ -499,7 +518,7 @@ Dataframe with dropped duplicates in columns 'key' and 'value':
   df = spark.createDataFrame(values, columns)
   <<ps2orgtbl("df")>>df.show()
   lst = df.select("integer").rdd.map(lambda r: r[0]).collect()
-  print("Column \"integer \" has values:", lst)
+  print(f"Column \"integer \" has values: <<tld>>{lst}<<tld>>")
 #+END_SRC
 
 #+RESULTS:
@@ -509,9 +528,11 @@ Dataframe with dropped duplicates in columns 'key' and 'value':
 |       2 | ['C', 'D'] |
 |       3 | ['E', 'F'] |
 
-Column "integer " has values: [1, 2, 3]
+Column "integer " has values: ~[1, 2, 3]~
+
 ** To convert a dataframe to a list of dictionaries corresponding to every row
 #+BEGIN_SRC python
+  import pprint
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -522,7 +543,8 @@ Column "integer " has values: [1, 2, 3]
   df = spark.createDataFrame(values, columns)
   <<ps2orgtbl("df")>>df.show()
   lst_dict = df.rdd.map(lambda row: row.asDict()).collect()
-  print("Dataframe is represented as", lst_dict)
+  print(f"Dataframe is represented as:\n")
+  txt = pprint.pformat(lst_dict)<<txtblk("txt")>>
 #+END_SRC
 
 #+RESULTS:
@@ -532,7 +554,13 @@ Column "integer " has values: [1, 2, 3]
 |       2 | ['C', 'D'] |
 |       3 | ['E', 'F'] |
 
-Dataframe is represented as [{'integer': 1, 'characters': ['A', 'B']}, {'integer': 2, 'characters': ['C', 'D']}, {'integer': 3, 'characters': ['E', 'F']}]
+Dataframe is represented as:
+
+#+begin_src text
+[{'characters': ['A', 'B'], 'integer': 1},
+ {'characters': ['C', 'D'], 'integer': 2},
+ {'characters': ['E', 'F'], 'integer': 3}]
+#+end_src
 
 ** To convert a column to a list using list comprehension
 #+BEGIN_SRC python
@@ -546,7 +574,7 @@ Dataframe is represented as [{'integer': 1, 'characters': ['A', 'B']}, {'integer
   df = spark.createDataFrame(values, columns)
   <<ps2orgtbl("df")>>df.show()
   lst = [k["integer"] for k in df.select("integer").rdd.collect()]
-  print("Column \"integer \" has values:", lst)
+  print(f"Column \"integer \" has values: <<tld>>{lst}<<tld>>")
 #+END_SRC
 
 #+RESULTS:
@@ -556,7 +584,8 @@ Dataframe is represented as [{'integer': 1, 'characters': ['A', 'B']}, {'integer
 |       2 | ['C', 'D'] |
 |       3 | ['E', 'F'] |
 
-Column "integer " has values: [1, 2, 3]
+Column "integer " has values: ~[1, 2, 3]~
+
 ** To convert a column to a list using Pandas
 #+BEGIN_SRC python
   from pyspark.sql import SparkSession
@@ -569,7 +598,7 @@ Column "integer " has values: [1, 2, 3]
   df = spark.createDataFrame(values, columns)
   <<ps2orgtbl("df")>>df.show()
   lst = df.select("integer").toPandas()["integer"].tolist()
-  print("Column \"integer \" has values:", lst)
+  print(f"Column \"integer \" has values: <<tld>>{lst}<<tld>>")
 #+END_SRC
 
 #+RESULTS:
@@ -579,7 +608,7 @@ Column "integer " has values: [1, 2, 3]
 |       2 | ['C', 'D'] |
 |       3 | ['E', 'F'] |
 
-Column "integer " has values: [1, 2, 3]
+Column "integer " has values: ~[1, 2, 3]~
 
 ** To display full width of a column (do not truncate)
 #+BEGIN_SRC python
@@ -631,7 +660,7 @@ Non-truncated output (show all):
 +-------------------------+
 * Filtering rows
 ** To filter based on values of a column
-#+BEGIN_SRC python
+#+BEGIN_SRC python :noweb strip-export
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -656,92 +685,91 @@ Non-truncated output (show all):
   print("Original dataframe:")
   <<ps2orgtbl("df")>>df.show()
 
-  print('Filter: F.col("Location" == "Home")')
+  print('Filter: <<tld>>F.col("Location" == "Home")<<tld>>')
   dft = df.filter(F.col("Location") == "Home")
   <<ps2orgtbl("dft")>>dft.show()
 
-  print('Filter: F.col("Quantity").isNull()')
+  print('Filter: <<tld>>F.col("Quantity").isNull()<<tld>>')
   dft = df.filter(F.col("Quantity").isNull())
   <<ps2orgtbl("dft")>>dft.show()
 
-  print('Filter: F.col("Quantity").isNotNull()')
+  print('Filter: <<tld>>F.col("Quantity").isNotNull()<<tld>>')
   dft = df.filter(F.col("Quantity").isNotNull())
   <<ps2orgtbl("dft")>>dft.show()
 
-  print('Filter: (F.col("Location") == "Home") & (F.col("Product") == "Laptop"))')
+  print('Filter: <<tld>>(F.col("Location") == "Home") & (F.col("Product") == "Laptop"))<<tld>>')
   dft = df.filter((F.col("Location") == "Home") & (F.col("Product") == "Laptop"))
   <<ps2orgtbl("dft")>>dft.show()
 
-  print('Filter: (F.col("Location") == "Home") & !(F.col("Product") == "Laptop"))')
+  print('Filter: <<tld>>(F.col("Location") == "Home") & !(F.col("Product") == "Laptop"))<<tld>>')
   dft = df.filter((F.col("Location") == "Home") & ~(F.col("Product") == "Laptop"))
   <<ps2orgtbl("dft")>>dft.show()
 
-  print('Filter: (F.col("Product") == "Laptop") | (F.col("Product") == "Mouse"))')
+  print('Filter: <<tld>>(F.col("Product") == "Laptop") | (F.col("Product") == "Mouse"))<<tld>>')
   dft = df.filter((F.col("Product") == "Laptop") | (F.col("Product") == "Mouse"))
   <<ps2orgtbl("dft")>>dft.show()
 
-  print('Filter: F.col("Product").isin(["Laptop", "Mouse"])')
+  print('Filter: <<tld>>F.col("Product").isin(["Laptop", "Mouse"])<<tld>>')
   dft = df.filter(F.col("Product").isin(["Laptop", "Mouse"]))
   <<ps2orgtbl("dft")>>dft.show()
 #+END_SRC
 
 #+RESULTS:
 Original dataframe:
+| Location   | Product   | Quantity   |
+|------------+-----------+------------|
+| Home       | Laptop    | 12.0       |
+| Home       | Monitor   | null       |
+| Home       | Keyboard  | 9.0        |
+| Office     | Laptop    | null       |
+| Office     | Monitor   | 10.0       |
+| Office     | Mouse     | 9.0        |
+
+Filter: ~F.col("Location" == "Home")~
+| Location   | Product   | Quantity   |
+|------------+-----------+------------|
+| Home       | Laptop    | 12.0       |
+| Home       | Monitor   | null       |
+| Home       | Keyboard  | 9.0        |
+
+Filter: ~F.col("Quantity").isNull()~
+| Location   | Product   | Quantity   |
+|------------+-----------+------------|
+| Home       | Monitor   | null       |
+| Office     | Laptop    | null       |
+
+Filter: ~F.col("Quantity").isNotNull()~
 | Location   | Product   |   Quantity |
 |------------+-----------+------------|
 | Home       | Laptop    |         12 |
-| Home       | Monitor   |        nan |
 | Home       | Keyboard  |          9 |
-| Office     | Laptop    |        nan |
 | Office     | Monitor   |         10 |
 | Office     | Mouse     |          9 |
 
-Filter: F.col("Location" == "Home")
-| Location   | Product   |   Quantity |
-|------------+-----------+------------|
-| Home       | Laptop    |         12 |
-| Home       | Monitor   |        nan |
-| Home       | Keyboard  |          9 |
-
-Filter: F.col("Quantity").isNull()
-| Location | Product | Quantity |
-|----------+---------+----------|
-| Home     | Monitor |      nan |
-| Office   | Laptop  |      nan |
-
-Filter: F.col("Quantity").isNotNull()
-| Location   | Product   |   Quantity |
-|------------+-----------+------------|
-| Home       | Laptop    |         12 |
-| Home       | Keyboard  |          9 |
-| Office     | Monitor   |         10 |
-| Office     | Mouse     |          9 |
-
-Filter: (F.col("Location") == "Home") & (F.col("Product") == "Laptop"))
+Filter: ~(F.col("Location") == "Home") & (F.col("Product") == "Laptop"))~
 | Location   | Product   |   Quantity |
 |------------+-----------+------------|
 | Home       | Laptop    |         12 |
 
-Filter: (F.col("Location") == "Home") & !(F.col("Product") == "Laptop"))
-| Location   | Product   |   Quantity |
+Filter: ~(F.col("Location") == "Home") & !(F.col("Product") == "Laptop"))~
+| Location   | Product   | Quantity   |
 |------------+-----------+------------|
-| Home       | Monitor   |        nan |
-| Home       | Keyboard  |          9 |
+| Home       | Monitor   | null       |
+| Home       | Keyboard  | 9.0        |
 
-Filter: (F.col("Product") == "Laptop") | (F.col("Product") == "Mouse"))
-| Location   | Product   |   Quantity |
+Filter: ~(F.col("Product") == "Laptop") | (F.col("Product") == "Mouse"))~
+| Location   | Product   | Quantity   |
 |------------+-----------+------------|
-| Home       | Laptop    |         12 |
-| Office     | Laptop    |        nan |
-| Office     | Mouse     |          9 |
+| Home       | Laptop    | 12.0       |
+| Office     | Laptop    | null       |
+| Office     | Mouse     | 9.0        |
 
-Filter: F.col("Product").isin(["Laptop", "Mouse"])
-| Location   | Product   |   Quantity |
+Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
+| Location   | Product   | Quantity   |
 |------------+-----------+------------|
-| Home       | Laptop    |         12 |
-| Office     | Laptop    |        nan |
-| Office     | Mouse     |          9 |
-
+| Home       | Laptop    | 12.0       |
+| Office     | Laptop    | null       |
+| Office     | Mouse     | 9.0        |
 * Array operations
 ** To create arrays of different lengths
 #+BEGIN_SRC python
@@ -880,7 +908,7 @@ Filter: F.col("Product").isin(["Laptop", "Mouse"])
 | [1, 2]    | [0, 0]      | [1, 2, 0, 0] |
 | [4, 5, 6] | [0]         | [4, 5, 6, 0] |
 
-** To sum two arrays elementwise using "element_at"
+** To sum two arrays elementwise using ~F.element_at()~
 #+BEGIN_SRC python
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
@@ -908,7 +936,7 @@ Filter: F.col("Product").isin(["Laptop", "Mouse"])
 | [1, 2]    | [1, 2, 0, 0] | [2, 3, 4, 5] | [3, 5, 4, 5]  |
 | [4, 5, 6] | [4, 5, 6, 0] | [2, 3, 4, 5] | [6, 8, 10, 5] |
 
-** To sum two arrays using "arrays_zip"
+** To sum two arrays using ~F.arrays_zip()~
 #+BEGIN_SRC python
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
@@ -990,8 +1018,9 @@ Filter: F.col("Product").isin(["Laptop", "Mouse"])
       return np.ediff1d(np.array(x)).tolist()
 
   df = df.withColumn("diff", diff_of_two_consecutive_elements(F.col("values")))
-  <<ps2orgtbl("df")>>dft.show()
-  df.printSchema()
+  <<ps2orgtbl("df")>>df.show()
+  print("Schema of the dataframe:\n")
+  <<txtblkstart>>df.printSchema()<<txtblkend>>
 #+END_SRC
 
 #+RESULTS:
@@ -1000,12 +1029,17 @@ Filter: F.col("Product").isin(["Laptop", "Mouse"])
 | A  | [4, 1, 0, 2] | [-3, -1, 2] |
 | B  | [1, 0, 3, 1] | [-1, 3, -2] |
 
+Schema of the dataframe:
+
+#+begin_src text
 root
  |-- id: string (nullable = true)
  |-- values: array (nullable = true)
  |    |-- element: integer (containsNull = true)
  |-- diff: array (nullable = true)
  |    |-- element: integer (containsNull = true)
+
+#+end_src
 
 ** To apply a function to every element of an array
 #+BEGIN_SRC python
@@ -1544,7 +1578,7 @@ Using split function and remove last character:
 | Home     | Mouse    |        8 | 22.22 |
 | Home     | Monitor  |        7 | 19.44 |
 
-** To find percentage of a column within a group using groupBy() and a join
+** To find percentage of a column within a group using ~.groupBy()~ and a join
 #+BEGIN_SRC python
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
@@ -1662,7 +1696,7 @@ Maximum value of Quantity: 23
 | Office   | Mouse    |        9 |               3 |
 
 * Dataframe join operations
-** Test join on different columns (full)
+** To perform a full, outer, left, right join operations
 #+BEGIN_SRC python
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
@@ -1723,10 +1757,10 @@ Maximum value of Quantity: 23
 
 #+RESULTS:
 Table A:
-| Name   |   Score |
-|--------+---------|
-| Alice  |      10 |
-| Bob    |      11 |
+| Name  | Score |
+|-------+-------|
+| Alice |    10 |
+| Bob   |    11 |
 
 Table B:
 | Name   |   Height |
@@ -1784,7 +1818,7 @@ Right join on 'name':
     Row(id=2, value="X1"),
     Row(id=2, value="Y1")]
   )
-  print("Dataframe df_a:")
+  print("Dataframe <<tld>>df_a<<tld>>:")
   <<ps2orgtbl("df_a")>>df_1.show()
 
   df_b = spark.createDataFrame([
@@ -1795,20 +1829,20 @@ Right join on 'name':
     Row(id=2, updated="X1"),
     Row(id=2, updated="Y1")]
   )
-  print("Dataframe df_b:")
+  print("Dataframe <<tld>>df_b<<tld>>:")
   <<ps2orgtbl("df_b")>>df_2.show()
 
   df = df_a.join(df_b, on=[df_a["id"] == df_b["id"], df_a["value"] == df_b["updated"]], how="full")
-  print("Full join on df_a['value'] == df_b['updated']:")
+  print("Full join on <<tld>>df_a['value'] == df_b['updated']<<tld>>:")
   <<ps2orgtbl("df")>>df.show()
 
   df = df_a.join(df_b, on=[df_a["id"] == df_b["id"], df_a["value"] == df_b["updated"]], how="full").drop(df_b["id"])
-  print("Full join on df_a['value'] == df_b['updated'] with dropped df_b['id'] column:")
+  print("Full join on <<tld>>df_a['value'] == df_b['updated']<<tld>> with dropped <<tld>>df_b['id']<<tld>> column:")
   <<ps2orgtbl("df")>>df.show()
 #+END_SRC
 
 #+RESULTS:
-Dataframe df_a:
+Dataframe ~df_a~:
 |   id | value   |
 |------+---------|
 |    1 | A1      |
@@ -1818,7 +1852,7 @@ Dataframe df_a:
 |    2 | X1      |
 |    2 | Y1      |
 
-Dataframe df_b:
+Dataframe ~df_b~:
 |   id | updated   |
 |------+-----------|
 |    1 | A2        |
@@ -1828,7 +1862,7 @@ Dataframe df_b:
 |    2 | X1        |
 |    2 | Y1        |
 
-Full join on df_a['value'] == df_b['updated']:
+Full join on ~df_a['value'] == df_b['updated']~:
 | id   | value   | id   | updated   |
 |------+---------+------+-----------|
 | 1.0  | A1      | null | null      |
@@ -1839,7 +1873,7 @@ Full join on df_a['value'] == df_b['updated']:
 | 2.0  | X1      | 2.0  | X1        |
 | 2.0  | Y1      | 2.0  | Y1        |
 
-Full join on ~df_a['value'] == df_b['updated']~ with dropped df_b['id'] column:
+Full join on ~df_a['value'] == df_b['updated']~ with dropped ~df_b['id']~ column:
 | id   | value   | updated   |
 |------+---------+-----------|
 | 1.0  | A1      | null      |
@@ -1851,7 +1885,7 @@ Full join on ~df_a['value'] == df_b['updated']~ with dropped df_b['id'] column:
 | 2.0  | Y1      | Y1        |
 
 * Aggregation and maps
-** To group by and aggregate into a map using map_from_entries()
+** To group by and aggregate into a map using ~F.map_from_entries()~
 #+BEGIN_SRC python
   import pyspark.sql.functions as F
   from pyspark.sql import Row
@@ -1876,7 +1910,7 @@ Full join on ~df_a['value'] == df_b['updated']~ with dropped df_b['id'] column:
   print("Dataframe with key -> value mapping")
   <<ps2orgtbl("dft")>>dft.show()
   print("Schema of the dataframe:\n")
-  dft.printSchema()
+  <<txtblkstart>>dft.printSchema()<<txtblkend>>
 #+END_SRC
 
 #+RESULTS:
@@ -1898,11 +1932,14 @@ Dataframe with key -> value mapping
 
 Schema of the dataframe:
 
+#+begin_src text
 root
  |-- id: long (nullable = true)
  |-- key_value: map (nullable = false)
  |    |-- key: string
  |    |-- value: string (valueContainsNull = true)
+
+#+end_src
 
 ** To group by and aggregate into a map using UDF
 #+BEGIN_SRC python
@@ -1934,7 +1971,7 @@ root
   print("Dataframe with keys and values:")
   <<ps2orgtbl("dft")>>dft.show()
   print("Schema of the dataframe:\n")
-  dft.printSchema()
+  <<txtblkstart>>dft.printSchema()<<txtblkend>>
 #+END_SRC
 
 #+RESULTS:
@@ -1956,12 +1993,14 @@ Dataframe with keys and values:
 
 Schema of the dataframe:
 
+#+begin_src text
 root
  |-- id: long (nullable = true)
  |-- key_value: map (nullable = true)
  |    |-- key: string
  |    |-- value: string (valueContainsNull = true)
 
+#+end_src
 
 ** To agregate over multiple columns and sum values of dictionaries
 #+BEGIN_SRC python
