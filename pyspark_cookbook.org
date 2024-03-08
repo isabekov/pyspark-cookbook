@@ -35,6 +35,36 @@
 #+begin_src python :exports none :results output raw :session none
   ~
 #+end_src
+
+#+name: printschema
+#+begin_src python :var df="df" :exports none :results value raw :session none
+  return f'''
+  from io import StringIO
+  import sys
+
+  class Capturing(list):
+      def __enter__(self):
+          self._stdout = sys.stdout
+          sys.stdout = self._stringio = StringIO()
+          return self
+      def __exit__(self, *args):
+          self.extend(self._stringio.getvalue().splitlines())
+          del self._stringio    # free up some memory
+          sys.stdout = self._stdout
+
+  with Capturing() as output:
+      {df}.printSchema()
+
+  # Remove trailing new line (empty string before printing)
+  if output[-1] == "":
+      output = output[:-1]
+
+  print("Schema of ~{df}~ is:")
+  print("#+begin_src text")
+  for k in output:
+      print(k)
+  print("#+end_src\\n")#'''
+#+end_src
 * Introduction
 ** To create an empty dataframe
 #+BEGIN_SRC python
@@ -627,7 +657,7 @@ Column "integer " has values: ~[1, 2, 3]~
 
   print("Truncated output (default behavior):")
   df.show()
-  print("Truncated to 15 characaters output:")
+  print("Truncated to 15 characters output:")
   df.show(truncate=15)
 
   print("Non-truncated output (show all):")
@@ -643,7 +673,7 @@ Truncated output (default behavior):
 |[with, many, word...|
 +--------------------+
 
-Truncated to 15 characaters output:
+Truncated to 15 characters output:
 +---------------+
 |       sentence|
 +---------------+
@@ -660,7 +690,7 @@ Non-truncated output (show all):
 +-------------------------+
 * Filtering rows
 ** To filter based on values of a column
-#+BEGIN_SRC python :noweb strip-export
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -770,6 +800,7 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
 | Home       | Laptop    | 12.0       |
 | Office     | Laptop    | null       |
 | Office     | Mouse     | 9.0        |
+
 * Array operations
 ** To create arrays of different lengths
 #+BEGIN_SRC python
@@ -986,10 +1017,19 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
       return Counter(x).most_common(1)[0][0]
 
   dft = df.withColumn("mode", udf_mode("A"))
+  <<printschema("dft")>>dft.printSchema()
   <<ps2orgtbl("dft")>>dft.show()
 #+END_SRC
 
 #+RESULTS:
+Schema of ~dft~ is:
+#+begin_src text
+root
+ |-- A: array (nullable = true)
+ |    |-- element: integer (containsNull = true)
+ |-- mode: string (nullable = true)
+#+end_src
+
 | A            |   mode |
 |--------------+--------|
 | [1, 2, 2, 4] |      2 |
@@ -1019,8 +1059,7 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
 
   df = df.withColumn("diff", diff_of_two_consecutive_elements(F.col("values")))
   <<ps2orgtbl("df")>>df.show()
-  print("Schema of the dataframe:\n")
-  <<txtblkstart>>df.printSchema()<<txtblkend>>
+  <<printschema("df")>>df.printSchema()
 #+END_SRC
 
 #+RESULTS:
@@ -1029,8 +1068,7 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
 | A  | [4, 1, 0, 2] | [-3, -1, 2] |
 | B  | [1, 0, 3, 1] | [-1, 3, -2] |
 
-Schema of the dataframe:
-
+Schema of ~df~ is:
 #+begin_src text
 root
  |-- id: string (nullable = true)
@@ -1038,7 +1076,6 @@ root
  |    |-- element: integer (containsNull = true)
  |-- diff: array (nullable = true)
  |    |-- element: integer (containsNull = true)
-
 #+end_src
 
 ** To apply a function to every element of an array
@@ -1909,8 +1946,7 @@ Full join on ~df_a['value'] == df_b['updated']~ with dropped ~df_b['id']~ column
   )
   print("Dataframe with key -> value mapping")
   <<ps2orgtbl("dft")>>dft.show()
-  print("Schema of the dataframe:\n")
-  <<txtblkstart>>dft.printSchema()<<txtblkend>>
+  <<printschema("dft")>>dft.printSchema()
 #+END_SRC
 
 #+RESULTS:
@@ -1930,15 +1966,13 @@ Dataframe with key -> value mapping
 |    1 | {'a': 'A1', 'b': 'B1', 'c': 'C1'} |
 |    2 | {'x': 'X1', 'a': 'A1', 'y': 'Y1'} |
 
-Schema of the dataframe:
-
+Schema of ~dft~ is:
 #+begin_src text
 root
  |-- id: long (nullable = true)
  |-- key_value: map (nullable = false)
  |    |-- key: string
  |    |-- value: string (valueContainsNull = true)
-
 #+end_src
 
 ** To group by and aggregate into a map using UDF
@@ -1970,8 +2004,7 @@ root
      .withColumn('key_value', map_array('key_value')))
   print("Dataframe with keys and values:")
   <<ps2orgtbl("dft")>>dft.show()
-  print("Schema of the dataframe:\n")
-  <<txtblkstart>>dft.printSchema()<<txtblkend>>
+  <<printschema("dft")>>dft.printSchema()
 #+END_SRC
 
 #+RESULTS:
@@ -1991,15 +2024,13 @@ Dataframe with keys and values:
 |    1 | {'a': 'A1', 'b': 'B1', 'c': 'C1'} |
 |    2 | {'x': 'X1', 'a': 'A1', 'y': 'Y1'} |
 
-Schema of the dataframe:
-
+Schema of ~dft~ is:
 #+begin_src text
 root
  |-- id: long (nullable = true)
  |-- key_value: map (nullable = true)
  |    |-- key: string
  |    |-- value: string (valueContainsNull = true)
-
 #+end_src
 
 ** To agregate over multiple columns and sum values of dictionaries
