@@ -65,6 +65,36 @@
       print(k)
   print("#+end_src\\n")#'''
 #+end_src
+
+#+name: prettifytable
+#+begin_src python :var cmd="df.show()" :exports none :results value raw :session none
+  return f'''
+  from io import StringIO
+  import sys
+
+  class Capturing(list):
+      def __enter__(self):
+          self._stdout = sys.stdout
+          sys.stdout = self._stringio = StringIO()
+          return self
+      def __exit__(self, *args):
+          self.extend(self._stringio.getvalue().splitlines())
+          del self._stringio    # free up some memory
+          sys.stdout = self._stdout
+
+  with Capturing() as output:
+      {cmd}
+
+  # Remove trailing new line (empty string before printing)
+  if output[-1] == "":
+      output = output[:-1]
+
+  import re
+  n = len(output)
+  for i in range(1, n-1):
+      print(re.sub("^\+([-]+)\+$",  r"|\\1|", output[i]))
+  print("\\n", end="")#'''
+#+end_src
 * Introduction
 ** To create an empty dataframe
 #+BEGIN_SRC python
@@ -656,38 +686,34 @@ Column "integer " has values: ~[1, 2, 3]~
   df = spark.createDataFrame(schema=schema, data=data)
 
   print("Truncated output (default behavior):")
-  df.show()
+  <<prettifytable("df.show()")>>df.show()
+
   print("Truncated to 15 characters output:")
-  df.show(truncate=15)
+  <<prettifytable("df.show(truncate\07515)")>>df.show(truncate=15)
 
   print("Non-truncated output (show all):")
-  df.show(truncate=False)
+  <<prettifytable("df.show(truncate\075False)")>>df.show(truncate=False)
 #+END_SRC
 
 #+RESULTS:
 Truncated output (default behavior):
-+--------------------+
 |            sentence|
-+--------------------+
+|--------------------|
 |[A, very, long, s...|
 |[with, many, word...|
-+--------------------+
 
 Truncated to 15 characters output:
-+---------------+
 |       sentence|
-+---------------+
+|---------------|
 |[A, very, lo...|
 |[with, many,...|
-+---------------+
 
 Non-truncated output (show all):
-+-------------------------+
 |sentence                 |
-+-------------------------+
+|-------------------------|
 |[A, very, long, sentence]|
 |[with, many, words, .]   |
-+-------------------------+
+
 * Filtering rows
 ** To filter based on values of a column
 #+BEGIN_SRC python
