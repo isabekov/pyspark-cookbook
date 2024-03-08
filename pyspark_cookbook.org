@@ -910,7 +910,7 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
   )
   data = [(["b", "a", "c"], ["c", "d", "a", "f"])]
   df = spark.createDataFrame(schema=schema, data=data)
-  dft = df.select("A", "B", F.array_intersect("A", "B").alias("A ∩ B"))
+  dft = df.select("A", "B", F.array_intersect("A", "B").alias("A \u2229 B"))
   <<ps2orgtbl("dft")>>dft.show()
 #+END_SRC
 
