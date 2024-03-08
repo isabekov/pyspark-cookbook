@@ -511,7 +511,7 @@ These are first 2 rows:
   df = spark.createDataFrame(schema=schema, data=data)
 
   print("Original dataframe:")
-  df.show()
+  <<ps2orgtbl("df")>>df.show()
 
   print("Dataframe with distinct rows:")
   <<ps2orgtbl("df.distinct()")>>df.distinct().show()
@@ -526,15 +526,13 @@ These are first 2 rows:
 
 #+RESULTS:
 Original dataframe:
-+---+------+----------+
-|key| value|   comment|
-+---+------+----------+
-|  1|  Home|   a house|
-|  1|  Home|   a house|
-|  2|School|a building|
-|  2|School|   a house|
-|  3|  Home|   a house|
-+---+------+----------+
+|   key | value   | comment    |
+|-------+---------+------------|
+|     1 | Home    | a house    |
+|     1 | Home    | a house    |
+|     2 | School  | a building |
+|     2 | School  | a house    |
+|     3 | Home    | a house    |
 
 Dataframe with distinct rows:
 |   key | value   | comment    |
@@ -571,7 +569,7 @@ Dataframe with dropped duplicates in columns 'key' and 'value':
   df = spark.createDataFrame(values, columns)
   <<ps2orgtbl("df")>>df.show()
   lst = df.select("integer").rdd.map(lambda r: r[0]).collect()
-  print(f"Column \"integer \" has values: <<tld>>{lst}<<tld>>")
+  print(f"Column \"integer\" has values: <<tld>>{lst}<<tld>>")
 #+END_SRC
 
 #+RESULTS:
@@ -581,7 +579,7 @@ Dataframe with dropped duplicates in columns 'key' and 'value':
 |       2 | ['C', 'D'] |
 |       3 | ['E', 'F'] |
 
-Column "integer " has values: ~[1, 2, 3]~
+Column "integer" has values: ~[1, 2, 3]~
 
 ** To convert a dataframe to a list of dictionaries corresponding to every row
 #+BEGIN_SRC python
@@ -627,7 +625,7 @@ Dataframe is represented as:
   df = spark.createDataFrame(values, columns)
   <<ps2orgtbl("df")>>df.show()
   lst = [k["integer"] for k in df.select("integer").rdd.collect()]
-  print(f"Column \"integer \" has values: <<tld>>{lst}<<tld>>")
+  print(f"Column \"integer\" has values: <<tld>>{lst}<<tld>>")
 #+END_SRC
 
 #+RESULTS:
@@ -637,7 +635,7 @@ Dataframe is represented as:
 |       2 | ['C', 'D'] |
 |       3 | ['E', 'F'] |
 
-Column "integer " has values: ~[1, 2, 3]~
+Column "integer" has values: ~[1, 2, 3]~
 
 ** To convert a column to a list using Pandas
 #+BEGIN_SRC python
@@ -651,7 +649,7 @@ Column "integer " has values: ~[1, 2, 3]~
   df = spark.createDataFrame(values, columns)
   <<ps2orgtbl("df")>>df.show()
   lst = df.select("integer").toPandas()["integer"].tolist()
-  print(f"Column \"integer \" has values: <<tld>>{lst}<<tld>>")
+  print(f"Column \"integer\" has values: <<tld>>{lst}<<tld>>")
 #+END_SRC
 
 #+RESULTS:
@@ -661,7 +659,7 @@ Column "integer " has values: ~[1, 2, 3]~
 |       2 | ['C', 'D'] |
 |       3 | ['E', 'F'] |
 
-Column "integer " has values: ~[1, 2, 3]~
+Column "integer" has values: ~[1, 2, 3]~
 
 ** To display full width of a column (do not truncate)
 #+BEGIN_SRC python
@@ -1803,7 +1801,7 @@ Maximum value of Quantity: 23
   <<ps2orgtbl("df")>>df.show()
 
   df = df_a.join(df_b, on="name", how="left")
-  print("Inner join on 'name':")
+  print("Left join on 'name':")
   <<ps2orgtbl("df")>>df.show()
 
   df = df_a.join(df_b, on="name", how="right")
@@ -1848,7 +1846,7 @@ Inner join on 'name':
 |-------+-------+--------|
 | Alice |    10 |     12 |
 
-Inner join on 'name':
+Left join on 'name':
 | Name   |   Score | Height   |
 |--------+---------+----------|
 | Bob    |      11 | null     |
