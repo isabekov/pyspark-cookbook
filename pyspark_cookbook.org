@@ -683,7 +683,7 @@ Column "integer" has values: ~[1, 2, 3]~
   <<prettifytable("df.show(truncate\07515)")>>df.show(truncate=15)
 
   print("Non-truncated output (show all):")
-  <<prettifytable("df.show(truncate\075False)")>>df.show(truncate=False)
+  <<prettifytable("df.show(truncate\u003dFalse)")>>df.show(truncate=False)
 #+END_SRC
 
 #+RESULTS:
