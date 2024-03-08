@@ -3,19 +3,32 @@
 #+EMAIL: aisabekov@ku.edu.tr
 #+LANGUAGE: en
 #+PROPERTY: header-args:emacs-lisp :results silent
-#+PROPERTY: header-args:python :results output :exports both :eval no-export
+#+PROPERTY: header-args:python :results output raw :exports both :eval no-export :async yes
 #+OPTIONS: ^:nil
 #+OPTIONS: html-style:nil
+#+EXCLUDE_TAGS: noexport
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="src/readtheorg_theme/css/htmlize.css"/>
 #+HTML_HEAD: <link rel="stylesheet" type="text/css" href="src/readtheorg_theme/css/readtheorg.css"/>
+#+HTML_HEAD: <link rel="icon" type="image/x-icon" href="src/favicon.ico">
 #+HTML_HEAD: <script type="text/javascript" src="src/lib/js/jquery.min.js"></script>
 #+HTML_HEAD: <script type="text/javascript" src="src/lib/js/bootstrap.min.js"></script>
 #+HTML_HEAD: <script type="text/javascript" src="src/lib/js/jquery.stickytableheaders.min.js"></script>
 #+HTML_HEAD: <script type="text/javascript" src="src/readtheorg_theme/js/readtheorg.js"></script>
+* Functions :noexport:
+#+name: pd2org
+#+begin_src python  :var df="df" :exports none
+  return f"return tabulate({df}, headers={df}.columns, tablefmt='orgtbl')"
+#+end_src
+
+#+name: pd2org
+#+begin_src python :var df="df" :exports none
+  return f"return tabulate({df}, headers={df}.columns, tablefmt='orgtbl')"
+#+end_src
+#+RESULTS: pd2org
 * Introduction
 ** To create an empty dataframe
-#+BEGIN_SRC python :session basics :async yes :results output
-  import  pyspark.sql.types as T
+#+BEGIN_SRC python
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -35,7 +48,7 @@
 : +---+---+
 : +---+---+
 ** To create a dataframe with columns key and value from a dictionary
-#+BEGIN_SRC python :session basics :async yes  :results output
+#+BEGIN_SRC python :async yes :results output raw :session pyspark-cookbook
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -45,18 +58,20 @@
   columns = ["key", "value"]
 
   df = spark.createDataFrame(values, columns)
-  df.show()
+  #df.show()
+  print(df.toPandas().to_markdown())
 #+END_SRC
 
 #+RESULTS:
-: +----+------+
-: | key| value|
-: +----+------+
-: |key1|value1|
-: |key2|value2|
-: +----+------+
+|   | value  | key  |
+|---+--------+------|
+| 0 | value1 | key1 |
+| 1 | value2 | key2 |
+9c353192fd8b4d1290c6d105989f0131
+
+
 ** To duplicate a column
-#+BEGIN_SRC python :session basics :async yes :results output
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -79,7 +94,7 @@
 : +----+------+---------+
 
 ** To rename a column using withColumnRenamed()
-#+BEGIN_SRC python :session basics :async yes :results output
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -112,7 +127,7 @@
 +-------+---------+
 #+end_example
 ** To rename a column using withColumnsRenamed()
-#+BEGIN_SRC python :session basics :async yes :results output
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -145,7 +160,7 @@
 #+end_example
 
 ** To rename a column using "select"
-#+BEGIN_SRC python :session basics :async yes :results output
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -178,10 +193,9 @@
 #+end_example
 
 ** To rename columns by adding a prefix
-#+header: :session basics :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
 
@@ -224,7 +238,7 @@ Dataframe with renamed columns:
 #+end_example
 
 ** To drop columns from a dataframe
-#+BEGIN_SRC python :session basics :async yes :results output
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -258,7 +272,7 @@ Dataframe with renamed columns:
 +----+
 #+end_example
 ** To subset columns of a dataframe
-#+BEGIN_SRC python :session basics :async yes :results output
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -298,7 +312,7 @@ Dataframe with renamed columns:
 #+end_example
 
 ** To add a column with a constant value using F.lit()
-#+BEGIN_SRC python :session basics :async yes :results output
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -331,7 +345,7 @@ Dataframe with renamed columns:
 +----+------+-------------+------------+
 #+end_example
 ** To add a column with a constant value using "select"
-#+BEGIN_SRC python :session basics :async yes :results output
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -348,9 +362,6 @@ Dataframe with renamed columns:
 
 #+RESULTS:
 #+begin_example
-Setting default log level to "WARN".
-To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-23/11/01 16:53:23 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
 +----+------+
 | key| value|
 +----+------+
@@ -367,7 +378,7 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 #+end_example
 
 ** To create a dataframe from a list of tuples
-#+BEGIN_SRC python :session basics :async yes  :results output
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -387,8 +398,8 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 : |      2|    [C, D]|
 : |      3|    [E, F]|
 : +-------+----------+
-** To get the number of rows of a dataframe
-#+BEGIN_SRC python :session basics :async yes  :results output
+** [#B] To get the number of rows of a dataframe
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -413,8 +424,7 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 :
 : df has 3 rows
 ** To select first N rows
-#+header: :session basics :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -448,10 +458,9 @@ These are first 2 rows:
 #+end_example
 
 ** To deduplicate rows
-#+header: :session basics :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
 
@@ -526,7 +535,7 @@ Dataframe with dropped duplicates in columns 'key' and 'value':
 #+end_example
 
 ** To convert a column to a list using lambda function
-#+BEGIN_SRC python :session basics :async yes  :results output
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -551,7 +560,7 @@ Dataframe with dropped duplicates in columns 'key' and 'value':
 :
 : Column "integer " has values: [1, 2, 3]
 ** To convert a dataframe to a list of dictionaries corresponding to every row
-#+BEGIN_SRC python :session basics :async yes  :results output
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -577,7 +586,7 @@ Dataframe with dropped duplicates in columns 'key' and 'value':
 : Dataframe is represented as [{'integer': 1, 'characters': ['A', 'B']}, {'integer': 2, 'characters': ['C', 'D']}, {'integer': 3, 'characters': ['E', 'F']}]
 
 ** To convert a column to a list using list comprehension
-#+BEGIN_SRC python :session basics :async yes  :results output
+#+BEGIN_SRC python
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -602,7 +611,7 @@ Dataframe with dropped duplicates in columns 'key' and 'value':
 :
 : Column "integer " has values: [1, 2, 3]
 ** To convert a column to a list using Pandas
-#+BEGIN_SRC python :session basics :async yes  :results output
+#+BEGIN_SRC python
     from pyspark.sql import SparkSession
     import pyspark.sql.functions as F
     spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -628,10 +637,9 @@ Dataframe with dropped duplicates in columns 'key' and 'value':
 : Column "integer " has values: [1, 2, 3]
 
 ** To display full width of a column (do not truncate)
-#+header: :session basics :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -651,7 +659,6 @@ Dataframe with dropped duplicates in columns 'key' and 'value':
 
 #+RESULTS:
 #+begin_example
-23/11/01 17:01:42 WARN SparkSession: Using an existing Spark session; only runtime SQL configurations will take effect.
 Truncated output:
 +--------------------+
 |            sentence|
@@ -671,10 +678,9 @@ Non-truncated output:
 
 * Filtering rows
 ** To filter based on values of a column
-#+header: :session num-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
 
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -796,10 +802,9 @@ Filter: F.col("Product").isin(["Laptop", "Mouse"])
 
 * Array operations
 ** To create arrays of different lengths
-#+header: :session set-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -821,17 +826,11 @@ Filter: F.col("Product").isin(["Laptop", "Mouse"])
 : |   [1, 2]|[2, 3, 4, 5]|
 : |[4, 5, 6]|[2, 3, 4, 5]|
 : +---------+------------+
+:
 ** To calculate set difference
-#+name: pd2org
-#+begin_src python  :var df="df" :exports none
-  return f"return tabulate({df}, headers={df}.columns, tablefmt='orgtbl')"
-#+end_src
-
-
-#+header: :session set-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -856,9 +855,9 @@ Filter: F.col("Product").isin(["Laptop", "Mouse"])
 : +---------+------------+---+------+
 
 ** To calculate set union
-#+BEGIN_SRC python :session set-ops :async yes :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -874,16 +873,15 @@ Filter: F.col("Product").isin(["Laptop", "Mouse"])
 #+END_SRC
 
 #+RESULTS:
-: 23/11/01 23:28:11 WARN SparkSession: Using an existing Spark session; only runtime SQL configurations will take effect.
 : +---------+------------+---------------+
 : |        A|           B|          A U B|
 : +---------+------------+---------------+
 : |[b, a, c]|[c, d, a, f]|[b, a, c, d, f]|
 : +---------+------------+---------------+
 ** To calculate set intersection
-#+BEGIN_SRC python :session set-ops :async yes :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -905,10 +903,9 @@ Filter: F.col("Product").isin(["Laptop", "Mouse"])
 : |[b, a, c]|[c, d, a, f]|[a, c]|
 : +---------+------------+------+
 ** To pad arrays with value
-#+header: :session set-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -933,9 +930,6 @@ Filter: F.col("Product").isin(["Laptop", "Mouse"])
 
 #+RESULTS:
 #+begin_example
-Setting default log level to "WARN".
-To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-23/11/01 23:41:01 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
 +---------+---------+------------+
 |        A|A_padding|    A_padded|
 +---------+---------+------------+
@@ -951,10 +945,9 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 +---------+---------+------------+
 #+end_example
 ** To sum two arrays elementwise using "element_at"
-#+header: :session set-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -980,10 +973,9 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 : |[4, 5, 6]|[4, 5, 6, 0]|[2, 3, 4, 5]|[6, 8, 10, 5]|
 : +---------+------------+------------+-------------+
 ** To sum two arrays using "arrays_zip"
-#+header: :session set-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -1009,11 +1001,10 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 : |[4, 5, 6]|[4, 5, 6, 0]|[2, 3, 4, 5]|[6, 8, 10, 5]|
 : +---------+------------+------------+-------------+
 ** To find mode of an array (most common element)
-#+header: :session array-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   from collections import Counter
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -1036,10 +1027,6 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 
 #+RESULTS:
 #+begin_example
-Setting default log level to "WARN".
-To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-23/11/02 00:09:52 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
-23/11/02 00:09:53 WARN Utils: Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
 +------------+----+
 |           A|mode|
 +------------+----+
@@ -1050,8 +1037,7 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 #+end_example
 
 ** To calculate difference of two consecutive elements in an array
-#+header: :session set-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import numpy as np
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
@@ -1078,10 +1064,6 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 
 #+RESULTS:
 #+begin_example
-Setting default log level to "WARN".
-To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-23/10/26 17:26:48 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
-23/10/26 17:26:49 WARN Utils: Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
 +---+------------+-----------+
 | id|      values|       diff|
 +---+------------+-----------+
@@ -1098,9 +1080,9 @@ root
 #+end_example
 
 ** To apply a function to every element of an array
-#+BEGIN_SRC python :session set-ops :async yes :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -1122,9 +1104,9 @@ root
 : |[apple_13, orange_14, lemon_15]|[apple, orange, lemon]|
 : +-------------------------------+----------------------+
 ** To deduplicate elements in an array (find unique/distinct elements)
-#+BEGIN_SRC python :session set-ops :async yes :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -1146,9 +1128,9 @@ root
 : |[apple, apple, lemon]|[apple, lemon]|
 : +---------------------+--------------+
 ** To create a map (dictionary) from two arrays (one with keys, one with values)
-#+BEGIN_SRC python :session set-ops :async yes :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -1171,10 +1153,9 @@ root
 : +---------+---------+------------------------+
 
 ** To calculate mean of an array
-#+header: :session set-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -1202,10 +1183,9 @@ root
 : |[4, 5, 6]| 5.0|
 : +---------+----+
 ** To find out whether an array has any negative elements
-#+header: :session set-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -1228,10 +1208,9 @@ root
 : |[4, 5, 6]|       false|
 : +---------+------------+
 ** To convert elements of an array to columns
-#+header: :session set-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -1255,8 +1234,7 @@ root
 : +------------+-----+---------+---------+---------+
 
 ** To find location of the first occurence of an element in an array
-#+header: :session set-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   import pandas as pd
@@ -1285,8 +1263,7 @@ root
 : +---------+--------+
 
 ** To calculate moving difference of two consecutive elements in an array
-#+header: :session set-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   import pandas as pd
@@ -1324,8 +1301,7 @@ root
 : +---------+------+-------+
 
 ** To slice an array
-#+header: :session set-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   import pandas as pd
@@ -1354,8 +1330,7 @@ root
 : +------------+-----------+
 
 ** To slice an array dynamically
-#+header: :session set-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   import pandas as pd
@@ -1385,10 +1360,9 @@ root
 
 * Text processing
 ** To remove prefix from a string using a UDF
-#+header: :session text-proc :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -1413,9 +1387,9 @@ root
 : +---------+---------+
 
 ** To split a string into letters (characters) using regex
-#+BEGIN_SRC python :session text-proc :async yes :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -1436,10 +1410,38 @@ root
 |This is|[T, h, i, s,  , i, s]|
 +-------+---------------------+
 #+end_example
-** To split a string into letters (characters) using split function
-#+BEGIN_SRC python :session :async yes :results output
+** To concatenate columns with strings using a separator
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("Str1", T.StringType(), True),
+          T.StructField("Str2", T.StringType(), True)
+      ]
+  )
+  data = [("This is", "a string"),
+          ("on a", "different row")]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df = df.withColumn("Str_Concat", F.concat_ws( "_", "Str1", "Str2"))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
++-------+-------------+------------------+
+|   Str1|         Str2|        Str_Concat|
++-------+-------------+------------------+
+|This is|     a string|  This is_a string|
+|   on a|different row|on a_different row|
++-------+-------------+------------------+
+#+end_example
+** To split a string into letters (characters) using split function
+#+BEGIN_SRC python
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -1454,18 +1456,15 @@ root
 #+END_SRC
 
 #+RESULTS:
-: Setting default log level to "WARN".
-: To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-: 24/02/03 09:44:29 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
 : +-------+---------------------+
 : |String |Characters           |
 : +-------+---------------------+
 : |This is|[T, h, i, s,  , i, s]|
 : +-------+---------------------+
 ** To split a string into letters (characters) and remove last character
-#+BEGIN_SRC python :session hello :async yes :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -1488,42 +1487,8 @@ root
 : +--------+---------------------+
 : |This is_|[T, h, i, s,  , i, s]|
 : +--------+---------------------+
-** To concatenate columns with strings using a separator
-#+header: :session text-proc :async yes
-#+BEGIN_SRC python :results output
-  import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
-  from pyspark.sql import SparkSession
-  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
-  schema = T.StructType(
-      [
-          T.StructField("Str1", T.StringType(), True),
-          T.StructField("Str2", T.StringType(), True)
-      ]
-  )
-  data = [("This is", "a string"),
-          ("on a", "different row")]
-  df = spark.createDataFrame(schema=schema, data=data)
-  df = df.withColumn("Str_Concat", F.concat_ws( "_", "Str1", "Str2"))
-  df.show()
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-Setting default log level to "WARN".
-To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-23/07/28 17:44:46 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
-23/07/28 17:44:47 WARN Utils: Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
-+-------+-------------+------------------+
-|   Str1|         Str2|        Str_Concat|
-+-------+-------------+------------------+
-|This is|     a string|  This is_a string|
-|   on a|different row|on a_different row|
-+-------+-------------+------------------+
-#+end_example
 ** To append a string to all values in a column
-#+header: :session text-proc :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   df = df.withColumn("Str1_with_prefix", F.concat(F.lit("Prefix_"), "Str1"))
   df.select("Str1", "Str1_with_prefix").show()
 #+END_SRC
@@ -1537,16 +1502,6 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 : +-------+----------------+
 
 ** To convert Pandas dataframe to tabular format
-#+name: pd2org
-#+begin_src python :var df="df" :exports none
-  return f"return tabulate({df}, headers={df}.columns, tablefmt='orgtbl')"
-#+end_src
-
-#+RESULTS: pd2org
-: return tabulate(df, headers=df.columns, tablefmt='orgtbl')
-
-#+header: :prologue from tabulate import tabulate
-#+header: :noweb strip-export
 #+begin_src python :results value raw :exports both
   import pandas as pd
   df = pd.DataFrame({
@@ -1558,19 +1513,14 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 #+end_src
 
 #+RESULTS:
-|   | a | b |
-|---+---+---|
-| 0 | 1 | 4 |
-| 1 | 2 | 5 |
-| 2 | 3 | 6 |
 
 * Time operations
 ** To calculate cumulative sum of a column
-#+BEGIN_SRC python :session time-proc :async yes :results output
+#+BEGIN_SRC python
   import pandas as pd
   from pyspark.sql import Window
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   df = pd.DataFrame({'time': [0, 1, 2, 3, 4, 5],
@@ -1596,9 +1546,9 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 +----+-----+----------+-----------+
 #+end_example
 ** To convert Unix time stamp to human readable format
-#+BEGIN_SRC python :session time-proc :async yes :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -1624,10 +1574,9 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 
 * Numerical operations
 ** To find percentage of a column
-#+header: :session num-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql.window import Window
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -1649,15 +1598,6 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 
 #+RESULTS:
 #+begin_example
-Setting default log level to "WARN".
-To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-23/09/19 16:29:26 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
-23/09/19 16:29:27 WARN Utils: Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
-23/09/19 16:29:30 WARN WindowExec: No Partition Defined for Window operation! Moving all data to a single partition, this can cause serious performance degradation.
-23/09/19 16:29:30 WARN WindowExec: No Partition Defined for Window operation! Moving all data to a single partition, this can cause serious performance degradation.
-23/09/19 16:29:30 WARN WindowExec: No Partition Defined for Window operation! Moving all data to a single partition, this can cause serious performance degradation.
-23/09/19 16:29:31 WARN WindowExec: No Partition Defined for Window operation! Moving all data to a single partition, this can cause serious performance degradation.
-23/09/19 16:29:31 WARN WindowExec: No Partition Defined for Window operation! Moving all data to a single partition, this can cause serious performance degradation.
 +--------+--------+-----+
 | Product|Quantity|    %|
 +--------+--------+-----+
@@ -1668,10 +1608,9 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 +--------+--------+-----+
 #+end_example
 ** To find percentage of a column within a group using a window
-#+header: :session num-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql.window import Window
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -1710,10 +1649,9 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 +--------+--------+--------+-----+
 #+end_example
 ** To find percentage of a column within a group using groupBy() and a join
-#+header: :session num-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql.window import Window
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -1755,10 +1693,9 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 #+end_example
 
 ** To find maximum value of a column
-#+header: :session num-ops :async yes
-#+BEGIN_SRC python :exports both
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql.window import Window
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -1785,18 +1722,122 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 : Maximum value of Quantity: 12
 
 ** To add a column with count of elements per group
-#+header: :session num-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("Location", T.StringType(), True),
+          T.StructField("Product", T.StringType(), True),
+          T.StructField("Quantity", T.IntegerType(), True),
+      ]
+  )
+  data = [("Home", "Laptop", 12),
+          ("Home", "Monitor", 7),
+          ("Home", "Mouse", 8),
+          ("Home", "Keyboard", 9),
+          ("Office", "Laptop", 23),
+          ("Office", "Monitor", 10),
+          ("Office", "Mouse", 9)]
+  df = spark.createDataFrame(schema=schema, data=data)
   df = df.withColumn("count_per_group", F.count(F.lit(1)).over(Window.partitionBy(F.col("Location"))))
   df.show()
 #+END_SRC
 
+#+RESULTS:
+#+begin_example
++--------+--------+--------+---------------+
+|Location| Product|Quantity|count_per_group|
++--------+--------+--------+---------------+
+|    Home|  Laptop|      12|              4|
+|    Home| Monitor|       7|              4|
+|    Home|   Mouse|       8|              4|
+|    Home|Keyboard|       9|              4|
+|  Office|  Laptop|      23|              3|
+|  Office| Monitor|      10|              3|
+|  Office|   Mouse|       9|              3|
++--------+--------+--------+---------------+
+
+#+end_example
+
 * Dataframe join operations
-** Test join on different columns
-#+header: :session num-ops :async yes
-#+BEGIN_SRC python :results output
+** Test join on different columns (full)
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("Name", T.StringType(), True),
+          T.StructField("Score", T.IntegerType(), True),
+      ]
+  )
+  data = [("Alice", 10),
+          ("Bob", 11)
+          ]
+  df_a = spark.createDataFrame(schema=schema, data=data)
+  df_a.show()
+
+  schema = T.StructType(
+      [
+          T.StructField("Name", T.StringType(), True),
+          T.StructField("Height", T.StringType(), True),
+      ]
+  )
+  data = [("Alice", 12),
+          ("Jane", 7),
+  ]
+  df_b = spark.createDataFrame(schema=schema, data=data)
+  df_b.show()
+
+  df = df_a.join(df_b, on="name", how="full")
+  df.show(truncate=False)
+
+  df = df_a.join(df_b, on="name", how="outer")
+  df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
++-----+-----+
+| Name|Score|
++-----+-----+
+|Alice|   10|
+|  Bob|   11|
++-----+-----+
+
++-----+------+
+| Name|Height|
++-----+------+
+|Alice|    12|
+| Jane|     7|
++-----+------+
+
++-----+-----+------+
+|Name |Score|Height|
++-----+-----+------+
+|Alice|10   |12    |
+|Bob  |11   |null  |
+|Jane |null |7     |
++-----+-----+------+
+
++-----+-----+------+
+|Name |Score|Height|
++-----+-----+------+
+|Alice|10   |12    |
+|Bob  |11   |null  |
+|Jane |null |7     |
++-----+-----+------+
+
+** Test join on different columns
+#+BEGIN_SRC python
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
   from pyspark.sql.window import Window
   from pyspark.sql import SparkSession
 
@@ -1882,8 +1923,7 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 +--------+--------+--------+------+------------------------------------+------+------------------------------------+
 #+end_example
 ** To drop one of the duplicate columns after join
-#+header: :session num-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   from pyspark.sql import Row
   from pyspark.sql import SparkSession
 
@@ -1938,8 +1978,7 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 
 * Aggregation and maps
 ** To group by and aggregate into a map using map_from_entries()
-#+header: :session num-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
   from pyspark.sql import Row
   from pyspark.sql.window import Window
@@ -1982,8 +2021,7 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 +---+---------------------------+
 #+end_example
 ** To group by and aggregate into a map using UDF
-#+header: :session num-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
   from pyspark.sql import Row
   from pyspark.sql.window import Window
@@ -2015,10 +2053,6 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 
 #+RESULTS:
 #+begin_example
-Setting default log level to "WARN".
-To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-23/10/20 13:18:48 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
-23/10/20 13:18:48 WARN Utils: Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
 +---+---+-----+
 |id |key|value|
 +---+---+-----+
@@ -2039,8 +2073,7 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 #+end_example
 
 ** To agregate over multiple columns and sum values of dictionaries
-#+header: :session num-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   from pyspark.sql.types import MapType, StringType, StructType, StructField, DoubleType
   import pyspark.sql.functions as F
   from pyspark.sql import SparkSession
@@ -2065,7 +2098,6 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 #+END_SRC
 
 #+RESULTS:
-: 23/10/20 13:21:22 WARN SparkSession: Using an existing Spark session; only runtime SQL configurations will take effect.
 : +----+----------------------+---------------------+---------------------+----------------------------------------------+
 : |clid|coef_1                |coef_2               |coef_3               |coef_total                                    |
 : +----+----------------------+---------------------+---------------------+----------------------------------------------+
@@ -2075,10 +2107,9 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 
 * Sampling rows
 ** To sample rows
-#+header: :session num-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
   schema = T.StructType(
@@ -2134,10 +2165,9 @@ To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLeve
 
 * UUID generation
 ** To generate a UUID for every row
-#+header: :session num-ops :async yes
-#+BEGIN_SRC python :results output
+#+BEGIN_SRC python
   import pyspark.sql.functions as F
-  import  pyspark.sql.types as T
+  import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   import random
   import uuid

@@ -8,8 +8,8 @@ $(MANUAL).docx: $(MANUAL).org
 $(MANUAL).pdf: $(MANUAL).org
 	org-export pdf --infile $<
 
-$(MANUAL).html: $(MANUAL).org
-	org-export html --infile $(MANUAL).org
+index.html: $(MANUAL).org
+	org-export html --infile $(MANUAL).org --outfile $@
 	sed -i -E "s/Table of Contents/PySpark Cookbook/g" $@
 
 
