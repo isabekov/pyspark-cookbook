@@ -254,3 +254,55 @@ Table 2:
 
 Two tables are the same.
 :end:
+* To convert PySpark dataframe to tabular format using post-processing with Python
+The formatting of PySpark dataframe is done in [[https://github.com/apache/spark/blob/branch-3.5/sql/core/src/main/scala/org/apache/spark/sql/Dataset.scala#L347][.showString()]].
+#+name: pretty2orgtbl_python
+#+begin_src python :var data="" :results output
+  import re
+  state_prev = ""
+  prev_line = ""
+
+  for j, line in enumerate(data.split("\n")):
+      if re.match("^\+[-+]+\+$", line):
+          state_curr = "hline"
+      elif re.match("^\|.*\|$", line):
+          state_curr = "tblbody"
+      else:
+          state_curr = "txt"
+
+      if (state_curr == "hline") & (state_prev == "txt"):
+          print(prev_line, end="")
+          prev_line = ""
+      elif (state_curr == "txt") & (state_prev == "hline"):
+          print("", end="")
+          prev_line = line
+      elif (state_curr == "txt") & (state_prev == ""):
+          print(prev_line, end="")
+          prev_line = re.sub("^\+([-+]+)\+$", "|\\1|", line)
+      else:
+          if j > 0:
+              print(prev_line, end="\n")
+          prev_line = re.sub("^\+([-+]+)\+$", "|\\1|", line)
+
+      state_prev = state_curr
+
+  if not re.match("^\|[-+]+\|$", prev_line):
+      print(prev_line)
+#+end_src
+
+#+CALL: pyspark-table() :post pretty2orgtbl_python(data=*this*)
+
+#+RESULTS:
+:results:
+Table 1:
+|        A|           B|A\B|   B\A|
+|---------+------------+---+------|
+|[b, a, c]|[c, d, a, f]|[b]|[d, f]|
+
+Table 2:
+|        A|           B|A\B|   B\A|
+|---------+------------+---+------|
+|[b, a, c]|[c, d, a, f]|[b]|[d, f]|
+
+Two tables are the same.
+:end:
