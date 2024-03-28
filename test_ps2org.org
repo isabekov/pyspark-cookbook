@@ -112,6 +112,7 @@ spark.sparkContext.setLogLevel('OFF')
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.config("spark.log.level", "OFF").master("local").appName("test-app").getOrCreate()
   <<nostderr("spark")>>
+
   schema = T.StructType(
       [
           T.StructField("a", T.IntegerType(), True),
@@ -338,3 +339,36 @@ Table 2:
 
 Two tables are the same.
 :end:
+* To convert PySpark dataframe to HTML format using a built-in function
+#+name: pyspark-table-repr-html
+#+header: :noweb strip-export
+#+begin_src python :results output html :session pyspark
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  from pyspark import SparkConf
+
+  # This configuration is needed to enable HTML rendering
+  conf = SparkConf().set("spark.sql.repl.eagerEval.enabled", "true")
+
+  spark = SparkSession.builder.master("local[1]").appName("test-app").config(conf=conf).getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("a", T.IntegerType(), True),
+          T.StructField("b", T.IntegerType(), True),
+      ]
+  )
+  data = [(1, 4), (2, 5), (3, 6)]
+  df = spark.createDataFrame(schema=schema, data=data)
+  print(df._repr_html_())
+#+end_src
+
+#+RESULTS: pyspark-table-repr-html
+#+begin_export html
+<table border='1'>
+<tr><th>a</th><th>b</th></tr>
+<tr><td>1</td><td>4</td></tr>
+<tr><td>2</td><td>5</td></tr>
+<tr><td>3</td><td>6</td></tr>
+</table>
+#+end_export
