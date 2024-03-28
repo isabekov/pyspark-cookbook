@@ -149,6 +149,38 @@ Which is converted into the following code block during evaluation:
   df = spark.createDataFrame(schema=schema, data=data)
   print(df.toPandas().to_markdown(index=False, tablefmt='orgtbl'))#df.show()
 #+END_SRC
+* To convert PySpark dataframe to tabular format using returned value and NOWEB
+#+name: litps2org
+#+begin_src python :exports none :results value raw :session none
+  .toPandas().to_markdown(index=False, tablefmt='orgtbl')#
+#+end_src
+
+#+header: :noweb strip-export
+#+BEGIN_SRC python :results value :exports both :session pyspark
+  # Built-in namespace
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("a", T.IntegerType(), True),
+          T.StructField("b", T.IntegerType(), True),
+      ]
+  )
+  data = [(1, 4), (2, 5), (3, 6)]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df<<litps2org>>.show()
+#+END_SRC
+
+#+RESULTS:
+: |   a |   b |
+: |-----+-----|
+: |   1 |   4 |
+: |   2 |   5 |
+: |   3 |   6 |
+
 * To convert PySpark dataframe to tabular format using post-processing with AWK
 #+name: pretty2orgtbl
 #+begin_src sh :var data="" :results output
