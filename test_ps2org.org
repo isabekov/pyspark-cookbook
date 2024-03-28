@@ -90,7 +90,7 @@
 * To convert PySpark dataframe to tabular format using actual and shown code
 #+name: show2org
 #+begin_src python :var df_in="df_in" :exports none :results value raw :session none
-  return f"print({df_in}.toPandas().to_markdown(index=False, tablefmt='orgtbl'))#"
+  return f"print({df_in}.toPandas().fillna('null').to_markdown(index=False, tablefmt='orgtbl') + '\\n')#"
 #+end_src
 
 #+RESULTS: show2org
