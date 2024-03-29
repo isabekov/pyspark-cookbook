@@ -51,7 +51,7 @@
   print("#+end_src\\n")#'''
 #+end_src
 
-#+name: prettifytable
+#+name: prettify_table
 #+begin_src python :var cmd="df.show()" :exports none :results value raw :session none
   return f'''
   <<captureoutput>>
@@ -64,6 +64,7 @@
 
   import re
   n = len(output)
+
   for i in range(1, n-1):
       print(re.sub("^\+([-]+)\+$",  r"|\\1|", output[i]))
   print("\\n", end="")#'''
@@ -692,13 +693,13 @@ Column "integer" has values: ~[1, 2, 3]~
   df = spark.createDataFrame(schema=schema, data=data)
 
   print("Truncated output (default behavior):")
-  <<prettifytable("df.show()")>>df.show()
+  <<prettify_table("df.show()")>>df.show()
 
   print("Truncated to 15 characters output:")
-  <<prettifytable("df.show(truncate\07515)")>>df.show(truncate=15)
+  <<prettify_table("df.show(truncate\07515)")>>df.show(truncate=15)
 
   print("Non-truncated output (show all):")
-  <<prettifytable("df.show(truncate\u003dFalse)")>>df.show(truncate=False)
+  <<prettify_table("df.show(truncate\u003dFalse)")>>df.show(truncate=False)
 #+END_SRC
 
 #+RESULTS:
