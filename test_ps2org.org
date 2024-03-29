@@ -2,14 +2,7 @@
 #+EMAIL: aisabekov@ku.edu.tr
 #+LANGUAGE: en
 #+PROPERTY: header-args:emacs-lisp :results silent
-#+OPTIONS: ^:nil
-#+OPTIONS: html-style:nil
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="src/readtheorg_theme/css/htmlize.css"/>
-#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="src/readtheorg_theme/css/readtheorg.css"/>
-#+HTML_HEAD: <script type="text/javascript" src="src/lib/js/jquery.min.js"></script>
-#+HTML_HEAD: <script type="text/javascript" src="src/lib/js/bootstrap.min.js"></script>
-#+HTML_HEAD: <script type="text/javascript" src="src/lib/js/jquery.stickytableheaders.min.js"></script>
-#+HTML_HEAD: <script type="text/javascript" src="src/readtheorg_theme/js/readtheorg.js"></script>
+#+SETUPFILE: src/setupfile_html.org
 * To convert Pandas dataframe to tabular format using tabulate()
 #+header: :prologue from tabulate import tabulate
 #+header: :noweb strip-export
