@@ -33,7 +33,7 @@
           sys.stdout = self._stdout
 #+end_src
 
-#+name: printschema
+#+name: print_schema
 #+begin_src python :var df="df" :exports none :results value raw :session none
   return f'''
   <<captureoutput>>
@@ -1050,7 +1050,7 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
       return Counter(x).most_common(1)[0][0]
 
   dft = df.withColumn("mode", udf_mode("A"))
-  <<printschema("dft")>>dft.printSchema()
+  <<print_schema("dft")>>dft.printSchema()
   dft.show()
 #+END_SRC
 
@@ -1092,7 +1092,7 @@ root
 
   df = df.withColumn("diff", diff_of_two_consecutive_elements(F.col("values")))
   df.show()
-  <<printschema("df")>>df.printSchema()
+  <<print_schema("df")>>df.printSchema()
 #+END_SRC
 
 #+RESULTS:
@@ -1979,7 +1979,7 @@ Full join on ~df_a['value'] == df_b['updated']~ with dropped ~df_b['id']~ column
   )
   print("Dataframe with key -> value mapping")
   dft.show(truncate=False)
-  <<printschema("dft")>>dft.printSchema()
+  <<print_schema("dft")>>dft.printSchema()
 #+END_SRC
 
 #+RESULTS:
@@ -2037,7 +2037,7 @@ root
      .withColumn('key_value', map_array('key_value')))
   print("Dataframe with keys and values:")
   dft.show(truncate=False)
-  <<printschema("dft")>>dft.printSchema()
+  <<print_schema("dft")>>dft.printSchema()
 #+END_SRC
 
 #+RESULTS:
