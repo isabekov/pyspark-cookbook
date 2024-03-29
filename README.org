@@ -1,0 +1,96 @@
+* PySpark Cookbook
+A collection of useful copy-pasteable standalone PySpark code snippets with corresponding output explaining behavior of commonly used functions.
+
+The source code of snippets is rendered as HTML and hosted at http://isabekov.github.io/pyspark-cookbook/.
+
+* Development Environment
+Emacs with ~org-mode~ is used as a development environment. Compared to Jupyter notebooks, the source code is easier to keep in a version control system since it is just a plain text.
+#+CAPTION: Emacs and org-mode can replace Jupyter notebooks.
+#+NAME:   fig:example
+[[./screenshots/example.png]]
+
+* Development dependencies
+| Software                 |  Version | Comment                                                                                    |
+|--------------------------+----------+--------------------------------------------------------------------------------------------|
+| Emacs                    |     29.2 | main development environment                                                               |
+| Python                   |   3.11.6 | works with pyspark >= 3.4.0, [[https://stackoverflow.com/questions/75048688/picklingerror-could-not-serialize-object-indexerror-tuple-index-out-of-range][(see discussion)]]                                              |
+| python-pyspark           |    3.4.0 | Python API for Spark (large-scale data processing library)                                 |
+| python-py4j              | 0.10.9.7 | enables Python programs to dynamically access Java (dependency of PySpark)                 |
+| python-pandas            |    2.0.2 | Python data analysis library                                                               |
+| python-pyarrow           |   15.0.0 | bindings to Apache Arrow (dependency of PySpark)                                           |
+| python-tabulate          |    0.9.0 | needed to convert dataframes into org-table format                                         |
+| Java Runtime Environment |  17.0.10 | newer version do not work with PySpark 3.4.0                                               |
+| PYNT (Emacs package)     |     >1.0 | interactive kernel for Python in Emacs, read installation instructions at (see [[https://github.com/ebanner/pynt][repository]]) |
+| org-export               |  64ac299 | command line tool needed for HTML export, requires Emacs (see [[https://github.com/nhoffman/org-export/tree/64ac299c041877620c2cadba83ded44f46c4e124][repository]])                  |
+
+* Install Python and Python Packages
+Depending on the operating system, install ~Python~ and packages ~py4j, pyspark, pandas, pyarrow, tabulate~ using corresponding package manager and ~pip~.
+
+* PYNT Installation
+Install the codebook module with ~pip~ package manager:
+#+begin_src shell
+  $ pip install  git+https://github.com/ebanner/pynt
+#+end_src
+
+On ArchLinux, pip is not allowed to install by default, so pass an extra argument:
+#+begin_src shell
+  $ pip install --break-system-packages  git+https://github.com/ebanner/pynt
+#+end_src
+
+Open Emacs. Install ~pynt~ in Emacs through MELPA.
+#+begin_src emacs-lisp
+  M-x package-install RET pynt
+#+end_src
+where RET is just the "Enter" key.
+
+To fix the following error during evaluation of code blocks:
+#+begin_src text
+  ModuleNotFoundError: No module named 'notebook.services'
+#+end_src
+
+Find the installation of PyNT:
+#+begin_src shell
+  $ grep -i kernelmanager /usr/lib/python3.11/site-packages/codebook/manager.py
+  from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
+#+end_src
+which is defined in the [[https://github.com/ebanner/pynt/blob/86cf9ce78d34f92bfd0764c9cbb75427ebd429e6/codebook/manager.py#L15][source code]] and change that line in ~manager.py~ to
+#+begin_src python
+  from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
+#+end_src
+
+* Java Runtime Installation
+PySpark Cookbook's recipes were tested in Emacs IDE using ~Java Runtime environment: 17.0.10.~. Set it as default:
+#+begin_src shell
+  $ export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+  $ sudo ln -s /usr/lib/jvm/java-17-openjdk /usr/lib/jvm/default
+#+end_src
+Newer versions of Java are not compatible with PySpark v3.4.0.
+
+* Install org-export
+#+begin_src shell
+  $ git clone https://github.com/nhoffman/org-export.git
+  $ cd org-export
+  $ sudo install -D -m 755 org-export* /usr/local/bin
+#+end_src
+
+* Export to HTML
+To produce [[http://isabekov.github.io/pyspark-cookbook/][HTML page with PySpark code snippets]], run:
+#+begin_src shell
+  $ make index.html
+#+end_src
+
+To render examples of converting PySpark tables displayed in ~pretty~ format to ~orgtbl~ format (see [[https://pypi.org/project/tabulate/0.3/][tabulate package]] describing the formats), run:
+#+begin_src shell
+  $ make test_ps2org.html
+#+end_src
+
+* Execution of Code Blocks in org-mode
+Navigate to any snippet *outside* "Functions"~ chapter (which is meant to provide only service functions for post-processing the output).
+Make sure that the cursor is inside a Python code block:
+#+begin_src
+  ,#+begin_src python :post pretty2orgtbl(data=*this*)
+    ...
+  ,#+end_src
+#+end_src
+
+Press ~C-c C-c~ (i.e. ~Ctrl-c~ twice). Emacs will execute the source code block inside a Python session and display the output.
