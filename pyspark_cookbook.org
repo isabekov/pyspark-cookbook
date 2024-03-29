@@ -3,32 +3,12 @@
 #+EMAIL: aisabekov@ku.edu.tr
 #+LANGUAGE: en
 #+PROPERTY: header-args:emacs-lisp :results silent
-#+PROPERTY: header-args:python :noweb strip-export :exports both :results output raw :session pyspark
+#+PROPERTY: header-args:python :noweb strip-export :exports both :results output raw drawer replace :session pyspark
 #+SETUPFILE: src/setupfile_html.org
 * Functions :noexport:
-#+name: pd2orgtbl
-#+begin_src python :var df="df" :exports none :results value raw :session none
-  return f"return tabulate({df}, headers={df}.columns, tablefmt='orgtbl', showindex=False)"
-#+end_src
-
-#+name: ps2orgtbl
-#+begin_src python :var df_in="df_in" :exports none :results value raw :session none
-  return f"print({df_in}.toPandas().fillna('null').to_markdown(index=False, tablefmt='orgtbl') + '\\n')#"
-#+end_src
-
 #+name: txtblk
 #+begin_src python :var a="a" :exports none :results value raw :session none
   return f";print(\"#+begin_src text\\n\" + {a} + \"\\n#+end_src\\n\")#"
-#+end_src
-
-#+name: txtblkstart
-#+begin_src python :exports none :results output raw :session none
-  print("#+begin_src text");
-#+end_src
-
-#+name: txtblkend
-#+begin_src python :exports none :results output raw :session none
-  ;print("#+end_src")#
 #+end_src
 
 #+name: tld
@@ -88,9 +68,44 @@
       print(re.sub("^\+([-]+)\+$",  r"|\\1|", output[i]))
   print("\\n", end="")#'''
 #+end_src
+
+#+name: pretty2orgtbl
+#+begin_src python :var data="" :exports none :results output :session none :exports none
+  import re
+  state_prev = ""
+  prev_line = ""
+
+  for j, line in enumerate(data.split("\n")):
+      if re.match("^\+[-+]+\+$", line):
+          state_curr = "hline"
+      elif re.match("^\|.*\|$", line):
+          state_curr = "tblbody"
+      else:
+          state_curr = "txt"
+
+      if (state_curr == "hline") & (state_prev == "txt"):
+          print(prev_line, end="")
+          prev_line = ""
+      elif (state_curr == "txt") & (state_prev == "hline"):
+          print("", end="")
+          prev_line = line
+      elif (state_curr == "txt") & (state_prev == ""):
+          print(prev_line, end="")
+          prev_line = re.sub("^\+([-+]+)\+$", "|\\1|", line)
+      else:
+          if j > 0:
+              print(prev_line, end="\n")
+          prev_line = re.sub("^\+([-+]+)\+$", "|\\1|", line)
+
+      state_prev = state_curr
+
+  if not re.match("^\|[-+]+\|$", prev_line):
+      print(prev_line)
+#+end_src
+
 * Introduction
 ** To create an empty dataframe
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
   spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
@@ -102,15 +117,15 @@
   )
   data = []
   df = spark.createDataFrame(schema=schema, data=data)
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
-| A   | B   |
-|-----+-----|
+| A | B |
+|---+---|
 
 ** To create a dataframe with columns key and value from a dictionary
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -120,17 +135,17 @@
   columns = ["key", "value"]
 
   df = spark.createDataFrame(values, columns)
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
-| key   | value   |
-|-------+---------|
-| key1  | value1  |
-| key2  | value2  |
+| key  | value  |
+|------+--------|
+| key1 | value1 |
+| key2 | value2 |
 
 ** To duplicate a column
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -141,7 +156,7 @@
 
   df = spark.createDataFrame(values, columns)
   df = df.withColumn("value_dup", F.col("value"))
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
@@ -151,7 +166,7 @@
 | key2 | value2 | value2    |
 
 ** To rename a column using ~.withColumnRenamed()~
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -162,28 +177,28 @@
 
   df = spark.createDataFrame(values, columns)
   print("Original dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
   df = df.withColumnRenamed("key", "new_key") \
           .withColumnRenamed("value","new_value")
   print("Modified dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
 Original dataframe:
-| key   | value   |
-|-------+---------|
-| key1  | value1  |
-| key2  | value2  |
+| key| value|
+|----+------|
+|key1|value1|
+|key2|value2|
 
 Modified dataframe:
-| new_key   | new_value   |
-|-----------+-------------|
-| key1      | value1      |
-| key2      | value2      |
+|new_key|new_value|
+|-------+---------|
+|   key1|   value1|
+|   key2|   value2|
 
 ** To rename a column using ~.withColumnsRenamed()~
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -194,27 +209,27 @@ Modified dataframe:
 
   df = spark.createDataFrame(values, columns)
   print("Original dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
   df = df.withColumnsRenamed({"key": "new_key", "value": "new_value"})
   print("Modified dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
 Original dataframe:
-| key   | value   |
-|-------+---------|
-| key1  | value1  |
-| key2  | value2  |
+| key| value|
+|----+------|
+|key1|value1|
+|key2|value2|
 
 Modified dataframe:
-| new_key   | new_value   |
-|-----------+-------------|
-| key1      | value1      |
-| key2      | value2      |
+|new_key|new_value|
+|-------+---------|
+|   key1|   value1|
+|   key2|   value2|
 
 ** To rename a column using ~.select()~
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -224,28 +239,28 @@ Modified dataframe:
   columns = ["key", "value"]
   df = spark.createDataFrame(values, columns)
   print("Original dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   df = df.select(F.col("key").alias("new_key"), F.col("value").alias("new_value"))
   print("Modified dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
 Original dataframe:
-| key   | value   |
-|-------+---------|
-| key1  | value1  |
-| key2  | value2  |
+| key| value|
+|----+------|
+|key1|value1|
+|key2|value2|
 
 Modified dataframe:
-| new_key   | new_value   |
-|-----------+-------------|
-| key1      | value1      |
-| key2      | value2      |
+|new_key|new_value|
+|-------+---------|
+|   key1|   value1|
+|   key2|   value2|
 
 ** To rename columns by adding a prefix
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -262,29 +277,29 @@ Modified dataframe:
           (3, "Home"),]
   df = spark.createDataFrame(schema=schema, data=data)
   print("Original dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
   print("Dataframe with renamed columns:")
   df = df.select(*[F.col(k).alias(f"prefix_{k}") for k in df.columns])
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
 Original dataframe:
-|   index | value   |
-|---------+---------|
-|       1 | Home    |
-|       2 | School  |
-|       3 | Home    |
+|index| value|
+|-----+------|
+|    1|  Home|
+|    2|School|
+|    3|  Home|
 
 Dataframe with renamed columns:
-|   prefix_index | prefix_value   |
-|----------------+----------------|
-|              1 | Home           |
-|              2 | School         |
-|              3 | Home           |
+|prefix_index|prefix_value|
+|------------+------------|
+|           1|        Home|
+|           2|      School|
+|           3|        Home|
 
 ** To drop columns from a dataframe
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -296,28 +311,28 @@ Dataframe with renamed columns:
 
   df = df.withColumn("const", F.lit(1))
   print("Original dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   df = df.drop("value", "const")
   print("Modified dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
 Original dataframe:
-| key   | value   |   const |
-|-------+---------+---------|
-| key1  | value1  |       1 |
-| key2  | value2  |       1 |
+| key| value|const|
+|----+------+-----|
+|key1|value1|    1|
+|key2|value2|    1|
 
 Modified dataframe:
-| key  |
-|------|
-| key1 |
-| key2 |
+| key|
+|----|
+|key1|
+|key2|
 
 ** To subset columns of a dataframe
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -328,34 +343,34 @@ Modified dataframe:
   df = spark.createDataFrame(values, columns)
   df = df.withColumn("const", F.lit(1))
   print("Original dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
   print("Subset 'key', 'value' columns:")
-  <<ps2orgtbl("df['key', 'value']")>>df["key", "value"].show()
+  df["key", "value"].show()
   print("Subset 'key', 'const' columns:")
-  <<ps2orgtbl("df['key', 'const']")>>df.select("key", "const").show()
+  df.select("key", "const").show()
 #+END_SRC
 
 #+RESULTS:
 Original dataframe:
-| key   | value   |   const |
-|-------+---------+---------|
-| key1  | value1  |       1 |
-| key2  | value2  |       1 |
+| key| value|const|
+|----+------+-----|
+|key1|value1|    1|
+|key2|value2|    1|
 
 Subset 'key', 'value' columns:
-| key   | value   |
-|-------+---------|
-| key1  | value1  |
-| key2  | value2  |
+| key| value|
+|----+------|
+|key1|value1|
+|key2|value2|
 
 Subset 'key', 'const' columns:
-| key   |   const |
-|-------+---------|
-| key1  |       1 |
-| key2  |       1 |
+| key|const|
+|----+-----|
+|key1|    1|
+|key2|    1|
 
 ** To add a column with a constant value using ~F.lit()~
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -365,29 +380,29 @@ Subset 'key', 'const' columns:
   columns = ["key", "value"]
   df = spark.createDataFrame(values, columns)
   print("Original dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   df = df.withColumn("const_integer", F.lit(1))
   df = df.withColumn("const_string", F.lit("string"))
   print("Modified dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
 Original dataframe:
-| key   | value   |
-|-------+---------|
-| key1  | value1  |
-| key2  | value2  |
+| key| value|
+|----+------|
+|key1|value1|
+|key2|value2|
 
 Modified dataframe:
-| key   | value   |   const_integer | const_string   |
-|-------+---------+-----------------+----------------|
-| key1  | value1  |               1 | string         |
-| key2  | value2  |               1 | string         |
+| key| value|const_integer|const_string|
+|----+------+-------------+------------|
+|key1|value1|            1|      string|
+|key2|value2|            1|      string|
 
 ** To add a column with a constant value using ~.select()~
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -397,28 +412,28 @@ Modified dataframe:
   columns = ["key", "value"]
   df = spark.createDataFrame(values, columns)
   print("Original dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   df = df.select("key", "value", F.lit("const_str").alias("constant_value"))
   print("Modified dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
 Original dataframe:
-| key   | value   |
-|-------+---------|
-| key1  | value1  |
-| key2  | value2  |
+| key| value|
+|----+------|
+|key1|value1|
+|key2|value2|
 
 Modified dataframe:
-| key   | value   | constant_value   |
-|-------+---------+------------------|
-| key1  | value1  | const_str        |
-| key2  | value2  | const_str        |
+| key| value|constant_value|
+|----+------+--------------|
+|key1|value1|     const_str|
+|key2|value2|     const_str|
 
 ** To create a dataframe from a list of tuples
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -427,18 +442,18 @@ Modified dataframe:
   columns = ["integer", "characters"]
 
   df = spark.createDataFrame(values, columns)
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
-|   integer | characters   |
-|-----------+--------------|
-|         1 | ['A', 'B']   |
-|         2 | ['C', 'D']   |
-|         3 | ['E', 'F']   |
+| integer | characters |
+|---------+------------|
+|       1 | [A, B]     |
+|       2 | [C, D]     |
+|       3 | [E, F]     |
 
 ** To get the number of rows of a dataframe
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -447,7 +462,7 @@ Modified dataframe:
   columns = ["integer", "characters"]
 
   df = spark.createDataFrame(values, columns)
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
   num_rows = df.count()
   print(f"df has {num_rows} rows")
 #+END_SRC
@@ -455,14 +470,14 @@ Modified dataframe:
 #+RESULTS:
 | integer | characters |
 |---------+------------|
-|       1 | ['A', 'B'] |
-|       2 | ['C', 'D'] |
-|       3 | ['E', 'F'] |
+|       1 | [A, B]     |
+|       2 | [C, D]     |
+|       3 | [E, F]     |
 
 df has 3 rows
 
 ** To select first N rows
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -471,26 +486,26 @@ df has 3 rows
   columns = ["integer", "characters"]
 
   df = spark.createDataFrame(values, columns)
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
   print("These are first 2 rows:")
-  <<ps2orgtbl("df.limit(2)")>>df.limit(2).show()
+  df.limit(2).show()
 #+END_SRC
 
 #+RESULTS:
 | integer | characters |
 |---------+------------|
-|       1 | ['A', 'B'] |
-|       2 | ['C', 'D'] |
-|       3 | ['E', 'F'] |
+|       1 | [A, B]     |
+|       2 | [C, D]     |
+|       3 | [E, F]     |
 
 These are first 2 rows:
-|   integer | characters   |
-|-----------+--------------|
-|         1 | ['A', 'B']   |
-|         2 | ['C', 'D']   |
+|integer|characters|
+|-------+----------|
+|      1|    [A, B]|
+|      2|    [C, D]|
 
 ** To deduplicate rows
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -511,54 +526,54 @@ These are first 2 rows:
   df = spark.createDataFrame(schema=schema, data=data)
 
   print("Original dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   print("Dataframe with distinct rows:")
-  <<ps2orgtbl("df.distinct()")>>df.distinct().show()
+  df.distinct().show()
 
   print("Dataframe with dropped duplicate rows:")
-  <<ps2orgtbl("df.dropDuplicates()")>>df.dropDuplicates().show()
+  df.dropDuplicates().show()
 
   print("Dataframe with dropped duplicates in columns 'key' and 'value':")
   df = df.dropDuplicates(subset=["key", "value"])
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
 Original dataframe:
-|   key | value   | comment    |
-|-------+---------+------------|
-|     1 | Home    | a house    |
-|     1 | Home    | a house    |
-|     2 | School  | a building |
-|     2 | School  | a house    |
-|     3 | Home    | a house    |
+| key | value  | comment    |
+|-----+--------+------------|
+|   1 | Home   | a house    |
+|   1 | Home   | a house    |
+|   2 | School | a building |
+|   2 | School | a house    |
+|   3 | Home   | a house    |
 
 Dataframe with distinct rows:
-|   key | value   | comment    |
-|-------+---------+------------|
-|     2 | School  | a house    |
-|     3 | Home    | a house    |
-|     2 | School  | a building |
-|     1 | Home    | a house    |
+| key | value  | comment    |
+|-----+--------+------------|
+|   2 | School | a house    |
+|   3 | Home   | a house    |
+|   2 | School | a building |
+|   1 | Home   | a house    |
 
 Dataframe with dropped duplicate rows:
-|   key | value   | comment    |
-|-------+---------+------------|
-|     2 | School  | a house    |
-|     3 | Home    | a house    |
-|     2 | School  | a building |
-|     1 | Home    | a house    |
+|key| value|   comment|
+|---+------+----------|
+|  2|School|   a house|
+|  3|  Home|   a house|
+|  2|School|a building|
+|  1|  Home|   a house|
 
 Dataframe with dropped duplicates in columns 'key' and 'value':
-|   key | value   | comment    |
-|-------+---------+------------|
-|     1 | Home    | a house    |
-|     2 | School  | a building |
-|     3 | Home    | a house    |
+|key| value|   comment|
+|---+------+----------|
+|  1|  Home|   a house|
+|  2|School|a building|
+|  3|  Home|   a house|
 
 ** To convert a column to a list using a lambda function
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -567,22 +582,22 @@ Dataframe with dropped duplicates in columns 'key' and 'value':
   columns = ["integer", "characters"]
 
   df = spark.createDataFrame(values, columns)
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
   lst = df.select("integer").rdd.map(lambda r: r[0]).collect()
   print(f"Column \"integer\" has values: <<tld>>{lst}<<tld>>")
 #+END_SRC
 
 #+RESULTS:
-| integer | characters |
-|---------+------------|
-|       1 | ['A', 'B'] |
-|       2 | ['C', 'D'] |
-|       3 | ['E', 'F'] |
+|integer|characters|
+|-------+----------|
+|      1|    [A, B]|
+|      2|    [C, D]|
+|      3|    [E, F]|
 
 Column "integer" has values: ~[1, 2, 3]~
 
 ** To convert a dataframe to a list of dictionaries corresponding to every row
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pprint
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
@@ -592,7 +607,7 @@ Column "integer" has values: ~[1, 2, 3]~
   columns = ["integer", "characters"]
 
   df = spark.createDataFrame(values, columns)
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
   lst_dict = df.rdd.map(lambda row: row.asDict()).collect()
   print(f"Dataframe is represented as:\n")
   txt = pprint.pformat(lst_dict)<<txtblk("txt")>>
@@ -601,9 +616,9 @@ Column "integer" has values: ~[1, 2, 3]~
 #+RESULTS:
 | integer | characters |
 |---------+------------|
-|       1 | ['A', 'B'] |
-|       2 | ['C', 'D'] |
-|       3 | ['E', 'F'] |
+|       1 | [A, B]     |
+|       2 | [C, D]     |
+|       3 | [E, F]     |
 
 Dataframe is represented as:
 
@@ -614,7 +629,7 @@ Dataframe is represented as:
 #+end_src
 
 ** To convert a column to a list using list comprehension
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -623,7 +638,7 @@ Dataframe is represented as:
   columns = ["integer", "characters"]
 
   df = spark.createDataFrame(values, columns)
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
   lst = [k["integer"] for k in df.select("integer").rdd.collect()]
   print(f"Column \"integer\" has values: <<tld>>{lst}<<tld>>")
 #+END_SRC
@@ -631,14 +646,14 @@ Dataframe is represented as:
 #+RESULTS:
 | integer | characters |
 |---------+------------|
-|       1 | ['A', 'B'] |
-|       2 | ['C', 'D'] |
-|       3 | ['E', 'F'] |
+|       1 | [A, B]     |
+|       2 | [C, D]     |
+|       3 | [E, F]     |
 
 Column "integer" has values: ~[1, 2, 3]~
 
 ** To convert a column to a list using Pandas
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import SparkSession
   import pyspark.sql.functions as F
   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
@@ -647,22 +662,22 @@ Column "integer" has values: ~[1, 2, 3]~
   columns = ["integer", "characters"]
 
   df = spark.createDataFrame(values, columns)
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
   lst = df.select("integer").toPandas()["integer"].tolist()
   print(f"Column \"integer\" has values: <<tld>>{lst}<<tld>>")
 #+END_SRC
 
 #+RESULTS:
-| integer | characters |
-|---------+------------|
-|       1 | ['A', 'B'] |
-|       2 | ['C', 'D'] |
-|       3 | ['E', 'F'] |
+|integer|characters|
+|-------+----------|
+|      1|    [A, B]|
+|      2|    [C, D]|
+|      3|    [E, F]|
 
 Column "integer" has values: ~[1, 2, 3]~
 
 ** To display full width of a column (do not truncate)
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -707,7 +722,7 @@ Non-truncated output (show all):
 
 * Filtering rows
 ** To filter based on values of a column
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -730,97 +745,97 @@ Non-truncated output (show all):
   df = spark.createDataFrame(schema=schema, data=data)
 
   print("Original dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   print('Filter: <<tld>>F.col("Location" == "Home")<<tld>>')
   dft = df.filter(F.col("Location") == "Home")
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 
   print('Filter: <<tld>>F.col("Quantity").isNull()<<tld>>')
   dft = df.filter(F.col("Quantity").isNull())
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 
   print('Filter: <<tld>>F.col("Quantity").isNotNull()<<tld>>')
   dft = df.filter(F.col("Quantity").isNotNull())
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 
   print('Filter: <<tld>>(F.col("Location") == "Home") & (F.col("Product") == "Laptop"))<<tld>>')
   dft = df.filter((F.col("Location") == "Home") & (F.col("Product") == "Laptop"))
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 
   print('Filter: <<tld>>(F.col("Location") == "Home") & !(F.col("Product") == "Laptop"))<<tld>>')
   dft = df.filter((F.col("Location") == "Home") & ~(F.col("Product") == "Laptop"))
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 
   print('Filter: <<tld>>(F.col("Product") == "Laptop") | (F.col("Product") == "Mouse"))<<tld>>')
   dft = df.filter((F.col("Product") == "Laptop") | (F.col("Product") == "Mouse"))
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 
   print('Filter: <<tld>>F.col("Product").isin(["Laptop", "Mouse"])<<tld>>')
   dft = df.filter(F.col("Product").isin(["Laptop", "Mouse"]))
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
 Original dataframe:
-| Location   | Product   | Quantity   |
-|------------+-----------+------------|
-| Home       | Laptop    | 12.0       |
-| Home       | Monitor   | null       |
-| Home       | Keyboard  | 9.0        |
-| Office     | Laptop    | null       |
-| Office     | Monitor   | 10.0       |
-| Office     | Mouse     | 9.0        |
+|Location| Product|Quantity|
+|--------+--------+--------|
+|    Home|  Laptop|      12|
+|    Home| Monitor|    null|
+|    Home|Keyboard|       9|
+|  Office|  Laptop|    null|
+|  Office| Monitor|      10|
+|  Office|   Mouse|       9|
 
 Filter: ~F.col("Location" == "Home")~
-| Location   | Product   | Quantity   |
-|------------+-----------+------------|
-| Home       | Laptop    | 12.0       |
-| Home       | Monitor   | null       |
-| Home       | Keyboard  | 9.0        |
+|Location| Product|Quantity|
+|--------+--------+--------|
+|    Home|  Laptop|      12|
+|    Home| Monitor|    null|
+|    Home|Keyboard|       9|
 
 Filter: ~F.col("Quantity").isNull()~
-| Location   | Product   | Quantity   |
-|------------+-----------+------------|
-| Home       | Monitor   | null       |
-| Office     | Laptop    | null       |
+|Location|Product|Quantity|
+|--------+-------+--------|
+|    Home|Monitor|    null|
+|  Office| Laptop|    null|
 
 Filter: ~F.col("Quantity").isNotNull()~
-| Location   | Product   |   Quantity |
-|------------+-----------+------------|
-| Home       | Laptop    |         12 |
-| Home       | Keyboard  |          9 |
-| Office     | Monitor   |         10 |
-| Office     | Mouse     |          9 |
+|Location| Product|Quantity|
+|--------+--------+--------|
+|    Home|  Laptop|      12|
+|    Home|Keyboard|       9|
+|  Office| Monitor|      10|
+|  Office|   Mouse|       9|
 
 Filter: ~(F.col("Location") == "Home") & (F.col("Product") == "Laptop"))~
-| Location   | Product   |   Quantity |
-|------------+-----------+------------|
-| Home       | Laptop    |         12 |
+|Location|Product|Quantity|
+|--------+-------+--------|
+|    Home| Laptop|      12|
 
 Filter: ~(F.col("Location") == "Home") & !(F.col("Product") == "Laptop"))~
-| Location   | Product   | Quantity   |
-|------------+-----------+------------|
-| Home       | Monitor   | null       |
-| Home       | Keyboard  | 9.0        |
+|Location| Product|Quantity|
+|--------+--------+--------|
+|    Home| Monitor|    null|
+|    Home|Keyboard|       9|
 
 Filter: ~(F.col("Product") == "Laptop") | (F.col("Product") == "Mouse"))~
-| Location   | Product   | Quantity   |
-|------------+-----------+------------|
-| Home       | Laptop    | 12.0       |
-| Office     | Laptop    | null       |
-| Office     | Mouse     | 9.0        |
+|Location|Product|Quantity|
+|--------+-------+--------|
+|    Home| Laptop|      12|
+|  Office| Laptop|    null|
+|  Office|  Mouse|       9|
 
 Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
-| Location   | Product   | Quantity   |
-|------------+-----------+------------|
-| Home       | Laptop    | 12.0       |
-| Office     | Laptop    | null       |
-| Office     | Mouse     | 9.0        |
+|Location|Product|Quantity|
+|--------+-------+--------|
+|    Home| Laptop|      12|
+|  Office| Laptop|    null|
+|  Office|  Mouse|       9|
 
 * Array operations
 ** To create arrays of different lengths
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -835,7 +850,7 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
           ([4, 5, 6], [2, 3, 4, 5])]
   df = spark.createDataFrame(schema=schema, data=data)
   dft = df.select("A", "B")
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
@@ -845,7 +860,7 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
 | [4, 5, 6] | [2, 3, 4, 5] |
 
 ** To calculate set difference
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -862,16 +877,16 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
   dft = df.select("A", "B",
             F.array_except("A", "B").alias("A\B"),
             F.array_except("B", "A").alias("B\A"))
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
-| A               | B                    | A\B   | B\A        |
-|-----------------+----------------------+-------+------------|
-| ['b', 'a', 'c'] | ['c', 'd', 'a', 'f'] | ['b'] | ['d', 'f'] |
+|        A|           B|A\B|   B\A|
+|---------+------------+---+------|
+|[b, a, c]|[c, d, a, f]|[b]|[d, f]|
 
 ** To calculate set union
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -886,16 +901,16 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
   df = spark.createDataFrame(schema=schema, data=data)
   dft = df.select("A", "B",
             F.array_union("A", "B").alias("A U B"))
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
-| A               | B                    | A U B                     |
-|-----------------+----------------------+---------------------------|
-| ['b', 'a', 'c'] | ['c', 'd', 'a', 'f'] | ['b', 'a', 'c', 'd', 'f'] |
+| A         | B            | A U B           |
+|-----------+--------------+-----------------|
+| [b, a, c] | [c, d, a, f] | [b, a, c, d, f] |
 
 ** To calculate set intersection
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -909,16 +924,16 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
   data = [(["b", "a", "c"], ["c", "d", "a", "f"])]
   df = spark.createDataFrame(schema=schema, data=data)
   dft = df.select("A", "B", F.array_intersect("A", "B").alias("A \u2229 B"))
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
-| A               | B                    | A ∩ B      |
-|-----------------+----------------------+------------|
-| ['b', 'a', 'c'] | ['c', 'd', 'a', 'f'] | ['a', 'c'] |
+| A         | B            | A ∩ B  |
+|-----------+--------------+--------|
+| [b, a, c] | [c, d, a, f] | [a, c] |
 
 ** To pad arrays with value
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -937,27 +952,27 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
   df1 = df.withColumn("A_padding", F.expr(f"array_repeat({fill_value}, {n} - size(A))"))
   df1 = df1.withColumn("A_padded", F.concat("A", "A_padding"))
   dft = df1.select("A", "A_padding", "A_padded")
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 
   df2 = df.withColumn("A_padding", F.array_repeat(F.lit(fill_value), F.lit(n) - F.size("A")))
   df2 = df2.withColumn("A_padded", F.concat("A", "A_padding"))
   dft = df2.select("A", "A_padding", "A_padded")
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
-| A         | A_padding   | A_padded     |
-|-----------+-------------+--------------|
-| [1, 2]    | [0, 0]      | [1, 2, 0, 0] |
-| [4, 5, 6] | [0]         | [4, 5, 6, 0] |
+| A         | A_padding | A_padded     |
+|-----------+-----------+--------------|
+| [1, 2]    | [0, 0]    | [1, 2, 0, 0] |
+| [4, 5, 6] | [0]       | [4, 5, 6, 0] |
 
-| A         | A_padding   | A_padded     |
-|-----------+-------------+--------------|
-| [1, 2]    | [0, 0]      | [1, 2, 0, 0] |
-| [4, 5, 6] | [0]         | [4, 5, 6, 0] |
+|        A|A_padding|    A_padded|
+|---------+---------+------------|
+|   [1, 2]|   [0, 0]|[1, 2, 0, 0]|
+|[4, 5, 6]|      [0]|[4, 5, 6, 0]|
 
 ** To sum two arrays elementwise using ~F.element_at()~
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -975,7 +990,7 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
   df = df.withColumn("A_padded", F.concat("A", "A_padding"))
   df = df.withColumn("AB_sum", F.expr('transform(A_padded, (element, index) -> element + element_at(B, index + 1))'))
   dft = df.select("A", "A_padded", "B", "AB_sum")
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
@@ -985,7 +1000,7 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
 | [4, 5, 6] | [4, 5, 6, 0] | [2, 3, 4, 5] | [6, 8, 10, 5] |
 
 ** To sum two arrays using ~F.arrays_zip()~
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1003,7 +1018,7 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
   df = df.withColumn("A_padded", F.concat("A", "A_padding"))
   df = df.withColumn("AB_sum", F.expr("transform(arrays_zip(A_padded, B), x -> x.A_padded + x.B)"))
   dft = df.select("A", "A_padded", "B", "AB_sum")
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
@@ -1013,7 +1028,7 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
 | [4, 5, 6] | [4, 5, 6, 0] | [2, 3, 4, 5] | [6, 8, 10, 5] |
 
 ** To find mode of an array (most common element)
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from collections import Counter
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
@@ -1035,7 +1050,7 @@ Filter: ~F.col("Product").isin(["Laptop", "Mouse"])~
 
   dft = df.withColumn("mode", udf_mode("A"))
   <<printschema("dft")>>dft.printSchema()
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
@@ -1054,7 +1069,7 @@ root
 | [1, 1, 2, 2] |      1 |
 
 ** To calculate difference of two consecutive elements in an array
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import numpy as np
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
@@ -1075,15 +1090,15 @@ root
       return np.ediff1d(np.array(x)).tolist()
 
   df = df.withColumn("diff", diff_of_two_consecutive_elements(F.col("values")))
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
   <<printschema("df")>>df.printSchema()
 #+END_SRC
 
 #+RESULTS:
-| id | values       | diff        |
-|----+--------------+-------------|
-| A  | [4, 1, 0, 2] | [-3, -1, 2] |
-| B  | [1, 0, 3, 1] | [-1, 3, -2] |
+| id|      values|       diff|
+|---+------------+-----------|
+|  A|[4, 1, 0, 2]|[-3, -1, 2]|
+|  B|[1, 0, 3, 1]|[-1, 3, -2]|
 
 Schema of ~df~ is:
 #+begin_src text
@@ -1096,7 +1111,7 @@ root
 #+end_src
 
 ** To apply a function to every element of an array
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1109,17 +1124,17 @@ root
   data = [(["pen_10", "note_11", "bottle_12"],), (["apple_13", "orange_14", "lemon_15"],),]
   df = spark.createDataFrame(schema=schema, data=data)
   df = df.withColumn("words", F.transform("words_with_suffixes", lambda x: F.split(x, "_").getItem(0)))
-  <<ps2orgtbl("df")>>df.show()
+  df.show(truncate=False)
 #+END_SRC
 
 #+RESULTS:
-| words_with_suffixes                   | words                        |
-|---------------------------------------+------------------------------|
-| ['pen_10', 'note_11', 'bottle_12']    | ['pen', 'note', 'bottle']    |
-| ['apple_13', 'orange_14', 'lemon_15'] | ['apple', 'orange', 'lemon'] |
+| words_with_suffixes             | words                  |
+|---------------------------------+------------------------|
+| [pen_10, note_11, bottle_12]    | [pen, note, bottle]    |
+| [apple_13, orange_14, lemon_15] | [apple, orange, lemon] |
 
 ** To deduplicate elements in an array (find unique/distinct elements)
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1132,17 +1147,17 @@ root
   data = [(["pen", "note", "pen"],), (["apple", "apple", "lemon"],),]
   df = spark.createDataFrame(schema=schema, data=data)
   df = df.withColumn("unique_words", F.array_distinct("words"))
-  <<ps2orgtbl("df")>>df.show()
+  df.show(truncate=False)
 #+END_SRC
 
 #+RESULTS:
-| words                       | unique_words       |
-|-----------------------------+--------------------|
-| ['pen', 'note', 'pen']      | ['pen', 'note']    |
-| ['apple', 'apple', 'lemon'] | ['apple', 'lemon'] |
+| words                 | unique_words   |
+|-----------------------+----------------|
+| [pen, note, pen]      | [pen, note]    |
+| [apple, apple, lemon] | [apple, lemon] |
 
 ** To create a map (dictionary) from two arrays (one with keys, one with values)
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1156,16 +1171,16 @@ root
   data = [([1, 2, 3], ["A", "B", "C"])]
   df = spark.createDataFrame(schema=schema, data=data)
   df = df.withColumn("map_kv", F.map_from_arrays("keys", "values"))
-  <<ps2orgtbl("df")>>df.show()
+  df.show(truncate=False)
 #+END_SRC
 
 #+RESULTS:
-| keys      | values          | map_kv                   |
-|-----------+-----------------+--------------------------|
-| [1, 2, 3] | ['A', 'B', 'C'] | {1: 'A', 2: 'B', 3: 'C'} |
+| keys      | values    | map_kv                   |
+|-----------+-----------+--------------------------|
+| [1, 2, 3] | [A, B, C] | {1 -> A, 2 -> B, 3 -> C} |
 
 ** To calculate mean of an array
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1184,17 +1199,17 @@ root
             lambda acc, x: acc + x,                    # merge operation
             lambda acc: acc / F.size(F.col("values")), # finish
         ))
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
-| values    |   mean |
-|-----------+--------|
-| [1, 2]    |    1.5 |
-| [4, 5, 6] |    5   |
+|   values|mean|
+|---------+----|
+|   [1, 2]| 1.5|
+|[4, 5, 6]| 5.0|
 
 ** To find out whether an array has any negative elements
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1208,17 +1223,17 @@ root
           ([4, 5, 6],)]
   df = spark.createDataFrame(schema=schema, data=data)
   df = df.withColumn("any_negative", F.exists("values", lambda x: x < 0))
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
 | values    | any_negative |
 |-----------+--------------|
-| [1, -2]   | True         |
-| [4, 5, 6] | False        |
+| [1, -2]   | true         |
+| [4, 5, 6] | false        |
 
 ** To convert elements of an array to columns
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1233,17 +1248,17 @@ root
   df = spark.createDataFrame(schema=schema, data=data)
   df = df.withColumn("first", F.col("A").getItem(0))
   dft = df.select("A", "first", *[F.col("A").getItem(k).alias(f"element_{k+1}") for k in range(1,4)])
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
 | A            | first | element_2 | element_3 | element_4 |
 |--------------+-------+-----------+-----------+-----------|
-| [1, 2, 3, 4] |     1 |         2 |         3 |         4 |
-| [5, 6, 7]    |     5 |         6 |         7 |       nan |
+| [1, 2, 3, 4] |     1 |         2 |         3 | 4         |
+| [5, 6, 7]    |     5 |         6 |         7 | null      |
 
 ** To find location of the first occurence of an element in an array
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   import pandas as pd
@@ -1260,7 +1275,7 @@ root
   df = spark.createDataFrame(schema=schema, data=data)
 
   df = df.withColumn("position", F.array_position(F.col("values"), 7))
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
@@ -1270,7 +1285,7 @@ root
 | [7, 4, 7] |        1 |
 
 ** To calculate moving difference of two consecutive elements in an array
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   import pandas as pd
@@ -1296,17 +1311,17 @@ root
 
   df = df.withColumn("diff2e", diff2e(F.col("values")))
   df = df.withColumn("ediff1d", diff_of_two_consecutive_elements(F.col("values")))
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
-| values    | diff2e   | ediff1d   |
-|-----------+----------+-----------|
-| [1, 2, 5] | [1, 3]   | [1, 3]    |
-| [4, 4, 6] | [0, 2]   | [0, 2]    |
+|   values|diff2e|ediff1d|
+|---------+------+-------|
+|[1, 2, 5]|[1, 3]| [1, 3]|
+|[4, 4, 6]|[0, 2]| [0, 2]|
 
 ** To slice an array
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   import pandas as pd
@@ -1323,7 +1338,7 @@ root
   df = spark.createDataFrame(schema=schema, data=data)
 
   df = df.withColumn("values[1:3]", F.slice("values", start=2, length=2))
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
@@ -1333,7 +1348,7 @@ root
 | [6, 4, 7, 3] | [4, 7]      |
 
 ** To slice an array dynamically
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   import pandas as pd
@@ -1350,7 +1365,7 @@ root
   df = spark.createDataFrame(schema=schema, data=data)
   start_idx = 2
   df = df.withColumn("values[1:]", F.slice("values", start=2, length=(F.size("values") - F.lit(start_idx - 1))))
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
@@ -1361,7 +1376,7 @@ root
 
 * Text processing
 ** To remove prefix from a string using a UDF
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1376,7 +1391,7 @@ root
   df = spark.createDataFrame(schema=schema, data=data)
   remove_prefix = F.udf(lambda x: x[3:] if x[:3] == "id_" else x, T.StringType())
   df = df.withColumn("no_prefix", remove_prefix(F.col("text")))
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
@@ -1386,7 +1401,7 @@ root
 | apple     | apple     |
 
 ** To split a string into letters (characters) using regex
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1399,16 +1414,16 @@ root
   data = [["This is"]]
   df = spark.createDataFrame(schema=schema, data=data)
   dft = df.select('String', F.split('String', '(?!$)').alias("Characters"))
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show(truncate=False)
 #+END_SRC
 
 #+RESULTS:
-| String  | Characters                          |
-|---------+-------------------------------------|
-| This is | ['T', 'h', 'i', 's', ' ', 'i', 's'] |
+| String  | Characters            |
+|---------+-----------------------|
+| This is | [T, h, i, s,  , i, s] |
 
 ** To concatenate columns with strings using a separator
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1423,7 +1438,7 @@ root
           ("on a", "different row")]
   df = spark.createDataFrame(schema=schema, data=data)
   df = df.withColumn("Str_Concat", F.concat_ws( "_", "Str1", "Str2"))
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
@@ -1433,7 +1448,7 @@ root
 | on a    | different row | on a_different row |
 
 ** To split a string into letters (characters) using split function
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1447,16 +1462,16 @@ root
   df = spark.createDataFrame(schema=schema, data=data)
   fsplit = F.expr("split(String, '')")
   dft = df.select('String', fsplit.alias("Characters"))
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show(truncate=False)
 #+END_SRC
 
 #+RESULTS:
-| String  | Characters                          |
-|---------+-------------------------------------|
-| This is | ['T', 'h', 'i', 's', ' ', 'i', 's'] |
+| String  | Characters            |
+|---------+-----------------------|
+| This is | [T, h, i, s,  , i, s] |
 
 ** To split a string into letters (characters) and remove last character
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1472,17 +1487,17 @@ root
   fsplit = "split(String, '')"
   fsplit = F.expr(f'slice({fsplit}, 1, size({fsplit}) - 1)')
   dft = df.select('String', fsplit.alias("Characters"))
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show(truncate=False)
 #+END_SRC
 
 #+RESULTS:
 Using split function and remove last character:
-| String   | Characters                          |
-|----------+-------------------------------------|
-| This is_ | ['T', 'h', 'i', 's', ' ', 'i', 's'] |
+|String  |Characters           |
+|--------+---------------------|
+|This is_|[T, h, i, s,  , i, s]|
 
 ** To append a string to all values in a column
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1498,7 +1513,7 @@ Using split function and remove last character:
   df = spark.createDataFrame(schema=schema, data=data)
   df = df.withColumn("Str1_with_prefix", F.concat(F.lit("Prefix_"), "Str1"))
   dft = df.select("Str1", "Str1_with_prefix")
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
@@ -1509,7 +1524,7 @@ Using split function and remove last character:
 
 * Time operations
 ** To calculate cumulative sum of a column
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pandas as pd
   from pyspark.sql import Window
   import pyspark.sql.functions as F
@@ -1522,21 +1537,21 @@ Using split function and remove last character:
   df = spark.createDataFrame(df)
   df = df.withColumn("cml_n_true", F.sum((F.col("value") == True).cast("int")).over(Window.orderBy(F.col("time").asc())))
   df = df.withColumn("cml_n_false", F.sum((F.col("value") == False).cast("int")).over(Window.orderBy(F.col("time").asc())))
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
-| time | value | cml_n_true | cml_n_false |
-|------+-------+------------+-------------|
-|    0 | False |          0 |           1 |
-|    1 | False |          0 |           2 |
-|    2 | True  |          1 |           2 |
-|    3 | False |          1 |           3 |
-|    4 | True  |          2 |           3 |
-|    5 | True  |          3 |           3 |
+|time|value|cml_n_true|cml_n_false|
+|----+-----+----------+-----------|
+|   0|false|         0|          1|
+|   1|false|         0|          2|
+|   2| true|         1|          2|
+|   3|false|         1|          3|
+|   4| true|         2|          3|
+|   5| true|         3|          3|
 
 ** To convert Unix time stamp to human readable format
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -1551,7 +1566,7 @@ Using split function and remove last character:
   df = spark.createDataFrame(schema=schema, data=data)
 
   df = df.withColumn("time_stamp_hrf", F.from_unixtime(F.col("timestamp")))
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
@@ -1562,7 +1577,7 @@ Using split function and remove last character:
 
 * Numerical operations
 ** To find percentage of a column
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql.window import Window
@@ -1582,19 +1597,19 @@ Using split function and remove last character:
 
   df = df.withColumn("%", F.round(F.col("Quantity")/F.sum("Quantity").over(Window.partitionBy())*100, 2))
   dft = df.select("Product", "Quantity", "%").orderBy(F.desc("Quantity"))
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
-| Product   |   Quantity |     % |
-|-----------+------------+-------|
-| Laptop    |         12 | 33.33 |
-| Keyboard  |          9 | 25    |
-| Mouse     |          8 | 22.22 |
-| Monitor   |          7 | 19.44 |
+| Product|Quantity|    %|
+|--------+--------+-----|
+|  Laptop|      12|33.33|
+|Keyboard|       9| 25.0|
+|   Mouse|       8|22.22|
+| Monitor|       7|19.44|
 
 ** To find percentage of a column within a group using a window
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql.window import Window
@@ -1618,7 +1633,7 @@ Using split function and remove last character:
 
   df = df.withColumn("%", F.round(F.col("Quantity")/F.sum("Quantity").over(Window.partitionBy("Location"))*100, 2))
   dft = df.select("Location", "Product", "Quantity", "%").orderBy(F.desc("Location"), F.desc("Quantity"))
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
@@ -1628,12 +1643,12 @@ Using split function and remove last character:
 | Office   | Monitor  |       10 | 23.81 |
 | Office   | Mouse    |        9 | 21.43 |
 | Home     | Laptop   |       12 | 33.33 |
-| Home     | Keyboard |        9 |    25 |
+| Home     | Keyboard |        9 |  25.0 |
 | Home     | Mouse    |        8 | 22.22 |
 | Home     | Monitor  |        7 | 19.44 |
 
 ** To find percentage of a column within a group using ~.groupBy()~ and a join
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql.window import Window
@@ -1658,7 +1673,7 @@ Using split function and remove last character:
   df_sum = df.groupBy("Location").agg(F.sum("Quantity").alias("Total_Quantity"))
   df = df.join(df_sum, on="Location").withColumn("%", F.round(F.col("Quantity")/F.col("Total_Quantity")*100, 2))
   dft = df.select("Location", "Product", "Quantity", "%").orderBy(F.desc("Location"), F.desc("Quantity"))
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
@@ -1668,12 +1683,12 @@ Using split function and remove last character:
 | Office   | Monitor  |       10 | 23.81 |
 | Office   | Mouse    |        9 | 21.43 |
 | Home     | Laptop   |       12 | 33.33 |
-| Home     | Keyboard |        9 |    25 |
+| Home     | Keyboard |        9 |  25.0 |
 | Home     | Mouse    |        8 | 22.22 |
 | Home     | Monitor  |        7 | 19.44 |
 
 ** To find maximum value of a column
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql.window import Window
@@ -1694,7 +1709,7 @@ Using split function and remove last character:
           ("Office", "Monitor", 10),
           ("Office", "Mouse", 9)]
   df = spark.createDataFrame(schema=schema, data=data)
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
   max_val = df.select("Quantity").rdd.max()[0]
   print(f"Maximum value of Quantity: {max_val}")
 #+END_SRC
@@ -1713,7 +1728,7 @@ Using split function and remove last character:
 Maximum value of Quantity: 23
 
 ** To add a column with count of elements per group
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql.window import Window
@@ -1735,7 +1750,7 @@ Maximum value of Quantity: 23
           ("Office", "Mouse", 9)]
   df = spark.createDataFrame(schema=schema, data=data)
   df = df.withColumn("count_per_group", F.count(F.lit(1)).over(Window.partitionBy(F.col("Location"))))
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
@@ -1751,7 +1766,7 @@ Maximum value of Quantity: 23
 
 * Dataframe join operations
 ** To perform a full, outer, left, right join operations
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql.window import Window
@@ -1769,7 +1784,7 @@ Maximum value of Quantity: 23
           ]
   df_a = spark.createDataFrame(schema=schema, data=data)
   print("Table A:")
-  <<ps2orgtbl("df_a")>>df_a.show()
+  df_a.show()
 
   schema = T.StructType(
       [
@@ -1782,84 +1797,84 @@ Maximum value of Quantity: 23
   ]
   df_b = spark.createDataFrame(schema=schema, data=data)
   print("Table B:")
-  <<ps2orgtbl("df_b")>>df_b.show()
+  df_b.show()
 
   df = df_a.join(df_b, on="name", how="full")
   print("Full join on 'name':")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   df = df_a.join(df_b, on="name", how="outer")
   print("Outer join on 'name':")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   df = df_a.join(df_b, df_a["Name"] == df_b["Name"])
   print("Join on 'name' on equal condition:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   df = df_a.join(df_b, on="name", how="inner")
   print("Inner join on 'name':")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   df = df_a.join(df_b, on="name", how="left")
   print("Left join on 'name':")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   df = df_a.join(df_b, on="name", how="right")
   print("Right join on 'name':")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
 Table A:
-| Name  | Score |
-|-------+-------|
-| Alice |    10 |
-| Bob   |    11 |
+| Name|Score|
+|-----+-----|
+|Alice|   10|
+|  Bob|   11|
 
 Table B:
-| Name   |   Height |
-|--------+----------|
-| Alice  |       12 |
-| Jane   |        7 |
+| Name|Height|
+|-----+------|
+|Alice|    12|
+| Jane|     7|
 
 Full join on 'name':
-| Name   | Score   | Height   |
-|--------+---------+----------|
-| Alice  | 10.0    | 12       |
-| Bob    | 11.0    | null     |
-| Jane   | null    | 7        |
+| Name|Score|Height|
+|-----+-----+------|
+|Alice|   10|    12|
+|  Bob|   11|  null|
+| Jane| null|     7|
 
 Outer join on 'name':
-| Name   | Score   | Height   |
-|--------+---------+----------|
-| Alice  | 10.0    | 12       |
-| Bob    | 11.0    | null     |
-| Jane   | null    | 7        |
+| Name|Score|Height|
+|-----+-----+------|
+|Alice|   10|    12|
+|  Bob|   11|  null|
+| Jane| null|     7|
 
 Join on 'name' on equal condition:
-| Name  | Score | Name  | Height |
-|-------+-------+-------+--------|
-| Alice |    10 | Alice |     12 |
+| Name|Score| Name|Height|
+|-----+-----+-----+------|
+|Alice|   10|Alice|    12|
 
 Inner join on 'name':
-| Name  | Score | Height |
-|-------+-------+--------|
-| Alice |    10 |     12 |
+| Name|Score|Height|
+|-----+-----+------|
+|Alice|   10|    12|
 
 Left join on 'name':
-| Name   |   Score | Height   |
-|--------+---------+----------|
-| Bob    |      11 | null     |
-| Alice  |      10 | 12       |
+| Name|Score|Height|
+|-----+-----+------|
+|  Bob|   11|  null|
+|Alice|   10|    12|
 
 Right join on 'name':
-| Name   | Score   |   Height |
-|--------+---------+----------|
-| Alice  | 10.0    |       12 |
-| Jane   | null    |        7 |
+| Name|Score|Height|
+|-----+-----+------|
+|Alice|   10|    12|
+| Jane| null|     7|
 
 ** To drop one of the duplicate columns after join
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import Row
   from pyspark.sql import SparkSession
 
@@ -1873,7 +1888,7 @@ Right join on 'name':
     Row(id=2, value="Y1")]
   )
   print("Dataframe <<tld>>df_a<<tld>>:")
-  <<ps2orgtbl("df_a")>>df_1.show()
+  df_1.show()
 
   df_b = spark.createDataFrame([
     Row(id=1, updated="A2"),
@@ -1884,15 +1899,15 @@ Right join on 'name':
     Row(id=2, updated="Y1")]
   )
   print("Dataframe <<tld>>df_b<<tld>>:")
-  <<ps2orgtbl("df_b")>>df_2.show()
+  df_2.show()
 
   df = df_a.join(df_b, on=[df_a["id"] == df_b["id"], df_a["value"] == df_b["updated"]], how="full")
   print("Full join on <<tld>>df_a['value'] == df_b['updated']<<tld>>:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   df = df_a.join(df_b, on=[df_a["id"] == df_b["id"], df_a["value"] == df_b["updated"]], how="full").drop(df_b["id"])
   print("Full join on <<tld>>df_a['value'] == df_b['updated']<<tld>> with dropped <<tld>>df_b['id']<<tld>> column:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 #+END_SRC
 
 #+RESULTS:
@@ -1940,7 +1955,7 @@ Full join on ~df_a['value'] == df_b['updated']~ with dropped ~df_b['id']~ column
 
 * Aggregation and maps
 ** To group by and aggregate into a map using ~F.map_from_entries()~
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   from pyspark.sql import Row
   from pyspark.sql.window import Window
@@ -1957,31 +1972,31 @@ Full join on ~df_a['value'] == df_b['updated']~ with dropped ~df_b['id']~ column
   )
 
   print("Dataframe with keys and values:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show(truncate=False)
   dft = df.groupBy("id").agg(F.map_from_entries(F.collect_list(
             F.struct("key", "value"))).alias("key_value")
   )
   print("Dataframe with key -> value mapping")
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show(truncate=False)
   <<printschema("dft")>>dft.printSchema()
 #+END_SRC
 
 #+RESULTS:
 Dataframe with keys and values:
-|   id | key   | value   |
-|------+-------+---------|
-|    1 | a     | A1      |
-|    1 | b     | B1      |
-|    1 | c     | C1      |
-|    2 | a     | A1      |
-|    2 | x     | X1      |
-|    2 | y     | Y1      |
+|id |key|value|
+|---+---+-----|
+|1  |a  |A1   |
+|1  |b  |B1   |
+|1  |c  |C1   |
+|2  |a  |A1   |
+|2  |x  |X1   |
+|2  |y  |Y1   |
 
 Dataframe with key -> value mapping
-|   id | key_value                         |
-|------+-----------------------------------|
-|    1 | {'a': 'A1', 'b': 'B1', 'c': 'C1'} |
-|    2 | {'x': 'X1', 'a': 'A1', 'y': 'Y1'} |
+|id |key_value                  |
+|---+---------------------------|
+|1  |{a -> A1, b -> B1, c -> C1}|
+|2  |{a -> A1, x -> X1, y -> Y1}|
 
 Schema of ~dft~ is:
 #+begin_src text
@@ -1993,7 +2008,7 @@ root
 #+end_src
 
 ** To group by and aggregate into a map using UDF
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   from pyspark.sql import Row
   from pyspark.sql import SparkSession
@@ -2010,7 +2025,7 @@ root
   )
 
   print("Dataframe with keys and values:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   @F.udf(returnType=T.MapType(T.StringType(), T.StringType()))
   def map_array(column):
@@ -2020,26 +2035,26 @@ root
      .agg(F.collect_list(F.struct("key", "value")).alias("key_value"))
      .withColumn('key_value', map_array('key_value')))
   print("Dataframe with keys and values:")
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show(truncate=False)
   <<printschema("dft")>>dft.printSchema()
 #+END_SRC
 
 #+RESULTS:
 Dataframe with keys and values:
-|   id | key   | value   |
-|------+-------+---------|
-|    1 | a     | A1      |
-|    1 | b     | B1      |
-|    1 | c     | C1      |
-|    2 | a     | A1      |
-|    2 | x     | X1      |
-|    2 | y     | Y1      |
+| id|key|value|
+|---+---+-----|
+|  1|  a|   A1|
+|  1|  b|   B1|
+|  1|  c|   C1|
+|  2|  a|   A1|
+|  2|  x|   X1|
+|  2|  y|   Y1|
 
 Dataframe with keys and values:
-|   id | key_value                         |
-|------+-----------------------------------|
-|    1 | {'a': 'A1', 'b': 'B1', 'c': 'C1'} |
-|    2 | {'x': 'X1', 'a': 'A1', 'y': 'Y1'} |
+|id |key_value                  |
+|---+---------------------------|
+|1  |{a -> A1, b -> B1, c -> C1}|
+|2  |{x -> X1, a -> A1, y -> Y1}|
 
 Schema of ~dft~ is:
 #+begin_src text
@@ -2051,7 +2066,7 @@ root
 #+end_src
 
 ** To agregate over multiple columns and sum values of dictionaries
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.types as T
   import pyspark.sql.functions as F
   from pyspark.sql import SparkSession
@@ -2072,19 +2087,18 @@ root
   for i in range(2,4):
       df = df.withColumn("coef_total", F.map_zip_with("coef_total", f"coef_{i}",
                         lambda k, v1, v2: F.when(v1.isNull(), 0).otherwise(v1) + F.when(v2.isNull(), 0).otherwise(v2)))
-  <<ps2orgtbl("df")>>df.show()
+  df.show(truncate=False)
 #+END_SRC
 
 #+RESULTS:
-
 | clid | coef_1                 | coef_2                | coef_3                | coef_total                                     |
 |------+------------------------+-----------------------+-----------------------+------------------------------------------------|
-| X    | {'B': 0.4, 'C': 0.4}   | {'B': 0.33, 'C': 0.5} | {'A': 0.5, 'C': 0.33} | {'A': 0.5, 'B': 0.73, 'C': 1.23}               |
-| Y    | {'B': 0.67, 'C': 0.33} | {'B': 0.85}           | {'A': 0.4, 'C': 0.57} | {'A': 0.4, 'B': 1.52, 'C': 0.8999999999999999} |
+| X    | {B -> 0.4, C -> 0.4}   | {B -> 0.33, C -> 0.5} | {A -> 0.5, C -> 0.33} | {B -> 0.73, C -> 1.23, A -> 0.5}               |
+| Y    | {B -> 0.67, C -> 0.33} | {B -> 0.85}           | {A -> 0.4, C -> 0.57} | {B -> 1.52, C -> 0.8999999999999999, A -> 0.4} |
 
 * Sampling rows
 ** To sample rows
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -2108,40 +2122,40 @@ root
   df = spark.createDataFrame(schema=schema, data=data).repartition(3)
   df = df.withColumn("partition", F.spark_partition_id()).orderBy("index")
   print("Original dataframe:")
-  <<ps2orgtbl("df")>>df.show()
+  df.show()
 
   print("Sampled dataframe:")
   dft = df.sample(fraction=0.5, seed=1).orderBy("index")
-  <<ps2orgtbl("dft")>>dft.show()
+  dft.show()
 #+END_SRC
 
 #+RESULTS:
 Original dataframe:
-|   index | value   |   partition |
-|---------+---------+-------------|
-|       1 | Home    |           1 |
-|       2 | School  |           0 |
-|       3 | Home    |           0 |
-|       4 | Home    |           2 |
-|       5 | Office  |           2 |
-|       6 | Office  |           2 |
-|       7 | Office  |           1 |
-|       8 | Mall    |           0 |
-|       9 | Mall    |           1 |
-|      10 | School  |           0 |
+|index| value|partition|
+|-----+------+---------|
+|    1|  Home|        1|
+|    2|School|        0|
+|    3|  Home|        0|
+|    4|  Home|        2|
+|    5|Office|        2|
+|    6|Office|        2|
+|    7|Office|        1|
+|    8|  Mall|        0|
+|    9|  Mall|        1|
+|   10|School|        0|
 
 Sampled dataframe:
-|   index | value   |   partition |
-|---------+---------+-------------|
-|       3 | Home    |           0 |
-|       4 | Home    |           2 |
-|       7 | Office  |           1 |
-|       8 | Mall    |           0 |
-|       9 | Mall    |           1 |
+|index| value|partition|
+|-----+------+---------|
+|    3|  Home|        0|
+|    4|  Home|        2|
+|    7|Office|        1|
+|    8|  Mall|        0|
+|    9|  Mall|        1|
 
 * UUID generation
 ** To generate a UUID for every row
-#+BEGIN_SRC python
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
   from pyspark.sql import SparkSession
@@ -2192,13 +2206,13 @@ Sampled dataframe:
   df = df.withColumn("UUID_seed_based", udf_generate_uuid())
 
   print("The dataframe resides in two partitions. Seed-based random UUID generator uses the same seed on both partitions, yielding identical values.")
-  <<ps2orgtbl("df")>>df.show()
+  df.show(truncate=False)
 #+END_SRC
 #+RESULTS:
 The dataframe resides in two partitions. Seed-based random UUID generator uses the same seed on both partitions, yielding identical values.
-| Name   | UUID_random_distributed              | UUID_seed_based                      |
-|--------+--------------------------------------+--------------------------------------|
-| John   | c9f3c8c8-52fd-a014-998c-a520edf7510e | cd613e30-d8f1-aadf-91b7-584a2265b1f5 |
-| Bon    | 2ce5c2ba-80af-ade9-b93e-03d5d4629ef1 | 1e2feb89-414c-a43c-9027-c4d1c386bbc4 |
-| Cecile | 0289eb79-6535-a019-89aa-5f8227c204ac | cd613e30-d8f1-aadf-91b7-584a2265b1f5 |
-| Alice  | 4e9a1383-7949-a07e-8302-f6cf53020a58 | 1e2feb89-414c-a43c-9027-c4d1c386bbc4 |
+|Name  |UUID_random_distributed             |UUID_seed_based                     |
+|------+------------------------------------+------------------------------------|
+|John  |4e9a3bb1-a189-a25e-8389-7f8382635b09|cd613e30-d8f1-aadf-91b7-584a2265b1f5|
+|Bon   |16cd1549-0c74-a483-9bbe-707e59e0796f|1e2feb89-414c-a43c-9027-c4d1c386bbc4|
+|Cecile|b8b05619-6004-aa75-b98b-7e1c83c9f301|cd613e30-d8f1-aadf-91b7-584a2265b1f5|
+|Alice |b1f1a9fb-feb9-a946-9171-3e7cb577fdaa|1e2feb89-414c-a43c-9027-c4d1c386bbc4|
