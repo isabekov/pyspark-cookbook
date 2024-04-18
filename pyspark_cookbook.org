@@ -1790,42 +1790,61 @@ Maximum value of Quantity: 23
   schema = T.StructType(
       [
           T.StructField("Name", T.StringType(), True),
-          T.StructField("Height", T.StringType(), True),
+          T.StructField("Surname", T.StringType(), True),
+          T.StructField("Age", T.StringType(), True),
       ]
   )
-  data = [("Alice", 12),
-          ("Jane", 7),
+  data = [("Alice", "Doe", 12),
+          ("Alice", "Smith", 30),
+          ("Jane", "Carter", 7),
   ]
   df_b = spark.createDataFrame(schema=schema, data=data)
   print("Table B:")
   df_b.show()
 
-  df = df_a.join(df_b, on="name", how="full")
-  print("Full join on 'name':")
+  df = df_a.join(df_b, on="Name", how="full")
+  print("Full join on 'Name':")
   df.show()
 
-  df = df_a.join(df_b, on="name", how="outer")
-  print("Outer join on 'name':")
+  df = df_a.join(df_b, on="Name", how="outer")
+  print("Outer join on 'Name':")
   df.show()
 
   df = df_a.join(df_b, df_a["Name"] == df_b["Name"])
-  print("Join on 'name' on equal condition:")
+  print("Join on 'Name' on equal condition:")
   df.show()
 
-  df = df_a.join(df_b, on="name", how="inner")
-  print("Inner join on 'name':")
+  df = df_a.join(df_b, on="Name", how="inner")
+  print("Inner join on 'Name':")
   df.show()
 
-  df = df_a.join(df_b, on="name", how="left")
-  print("Left join on 'name':")
+  df = df_a.join(df_b, on="Name", how="left")
+  print("Left join on 'Name':")
   df.show()
 
-  df = df_a.join(df_b, on="name", how="right")
-  print("Right join on 'name':")
+  df = df_a.join(df_b, on="Name", how="left_outer")
+  print("Left-outer join on 'Name':")
+  df.show()
+
+  df = df_a.join(df_b, on="Name", how="left_anti")
+  print("Left-anti join on 'Name':")
+  df.show()
+
+  df = df_a.join(df_b, on="Name", how="left_semi")
+  print("Left-semi join on 'Name':")
+  df.show()
+
+  df = df_a.join(df_b, on="Name", how="right")
+  print("Right join on 'Name':")
+  df.show()
+
+  df = df_a.join(df_b, on="Name", how="right_outer")
+  print("Right-outer join on 'Name':")
   df.show()
 #+END_SRC
 
 #+RESULTS:
+:results:
 Table A:
 | Name|Score|
 |-----+-----|
@@ -1833,47 +1852,78 @@ Table A:
 |  Bob|   11|
 
 Table B:
-| Name|Height|
-|-----+------|
-|Alice|    12|
-| Jane|     7|
+| Name|Surname|Age|
+|-----+-------+---|
+|Alice|    Doe| 12|
+|Alice|  Smith| 30|
+| Jane| Carter|  7|
 
-Full join on 'name':
-| Name|Score|Height|
-|-----+-----+------|
-|Alice|   10|    12|
-|  Bob|   11|  null|
-| Jane| null|     7|
+Full join on 'Name':
+| Name|Score|Surname| Age|
+|-----+-----+-------+----|
+|Alice|   10|    Doe|  12|
+|Alice|   10|  Smith|  30|
+|  Bob|   11|   null|null|
+| Jane| null| Carter|   7|
 
-Outer join on 'name':
-| Name|Score|Height|
-|-----+-----+------|
-|Alice|   10|    12|
-|  Bob|   11|  null|
-| Jane| null|     7|
+Outer join on 'Name':
+| Name|Score|Surname| Age|
+|-----+-----+-------+----|
+|Alice|   10|    Doe|  12|
+|Alice|   10|  Smith|  30|
+|  Bob|   11|   null|null|
+| Jane| null| Carter|   7|
 
-Join on 'name' on equal condition:
-| Name|Score| Name|Height|
-|-----+-----+-----+------|
-|Alice|   10|Alice|    12|
+Join on 'Name' on equal condition:
+| Name|Score| Name|Surname|Age|
+|-----+-----+-----+-------+---|
+|Alice|   10|Alice|    Doe| 12|
+|Alice|   10|Alice|  Smith| 30|
 
-Inner join on 'name':
-| Name|Score|Height|
-|-----+-----+------|
-|Alice|   10|    12|
+Inner join on 'Name':
+| Name|Score|Surname|Age|
+|-----+-----+-------+---|
+|Alice|   10|    Doe| 12|
+|Alice|   10|  Smith| 30|
 
-Left join on 'name':
-| Name|Score|Height|
-|-----+-----+------|
-|  Bob|   11|  null|
-|Alice|   10|    12|
+Left join on 'Name':
+| Name|Score|Surname| Age|
+|-----+-----+-------+----|
+|  Bob|   11|   null|null|
+|Alice|   10|  Smith|  30|
+|Alice|   10|    Doe|  12|
 
-Right join on 'name':
-| Name|Score|Height|
-|-----+-----+------|
-|Alice|   10|    12|
-| Jane| null|     7|
+Left-outer join on 'Name':
+| Name|Score|Surname| Age|
+|-----+-----+-------+----|
+|  Bob|   11|   null|null|
+|Alice|   10|  Smith|  30|
+|Alice|   10|    Doe|  12|
 
+Left-anti join on 'Name':
+|Name|Score|
+|----+-----|
+| Bob|   11|
+
+Left-semi join on 'Name':
+| Name|Score|
+|-----+-----|
+|Alice|   10|
+
+Right join on 'Name':
+| Name|Score|Surname|Age|
+|-----+-----+-------+---|
+|Alice|   10|    Doe| 12|
+|Alice|   10|  Smith| 30|
+| Jane| null| Carter|  7|
+
+Right-outer join on 'Name':
+| Name|Score|Surname|Age|
+|-----+-----+-------+---|
+|Alice|   10|    Doe| 12|
+|Alice|   10|  Smith| 30|
+| Jane| null| Carter|  7|
+:end:
 ** To drop one of the duplicate columns after join
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   from pyspark.sql import Row
