@@ -1688,6 +1688,43 @@ Using split function and remove last character:
 | Home     | Mouse    |        8 | 22.22 |
 | Home     | Monitor  |        7 | 19.44 |
 
+** To add a row with total count and percentage for a column
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+   import pyspark.sql.functions as F
+   import pyspark.sql.types as T
+   from pyspark.sql.window import Window
+   from pyspark.sql import SparkSession
+   spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+   schema = T.StructType(
+       [
+           T.StructField("Name", T.StringType(), True),
+           T.StructField("Books read", T.IntegerType(), True),
+       ]
+   )
+   data = [("Alice", 12),
+           ("Bob", 7),
+           ("Michael", 8),
+           ("Kevin", 10)]
+   df = spark.createDataFrame(schema=schema, data=data)
+   df = df.withColumn("%", F.round( F.col("Books read")/F.sum("Books read").over(Window.partitionBy())*100, 6))
+   dft = df.select("Name", "Books read", "%").orderBy(F.desc("Books read"))
+   dft = dft.union(
+                  dft.groupBy().agg(F.lit("Total"),
+                                        F.sum("Books read").alias("Books read"),
+                                        F.sum("%").alias("%"))
+                  )
+   dft.show()
+#+END_SRC
+
+#+RESULTS:
+|   Name|Books read|        %|
+|-------+----------+---------|
+|  Alice|        12|32.432432|
+|  Kevin|        10|27.027027|
+|Michael|         8|21.621622|
+|    Bob|         7|18.918919|
+|  Total|        37|    100.0|
+
 ** To find maximum value of a column
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
