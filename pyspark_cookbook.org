@@ -1801,6 +1801,49 @@ Maximum value of Quantity: 23
 | Office   | Laptop   |       23 |               3 |
 | Office   | Monitor  |       10 |               3 |
 | Office   | Mouse    |        9 |               3 |
+** To add a column with count of elements whose quantity is larger than some number per group
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("Location", T.StringType(), True),
+          T.StructField("Product", T.StringType(), True),
+          T.StructField("Quantity", T.IntegerType(), True),
+      ]
+  )
+  data = [("Home", "Laptop", 12),
+          ("Home", "Monitor", 7),
+          ("Home", "Mouse", 8),
+          ("Home", "Keyboard", 9),
+          ("Office", "Laptop", 23),
+          ("Office", "Monitor", 10),
+          ("Office", "Mouse", 9)]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df.show()
+  dfs = df.groupBy("Location").agg(F.sum((F.col("Quantity") >= 10).cast("int")).alias("Count of products with quantity >= 10 per location"))
+  dfs.show()
+#+END_SRC
+
+#+RESULTS:
+|----------+----------+----------|
+| Location | Product  | Quantity |
+|----------+----------+----------|
+| Home     | Laptop   |       12 |
+| Home     | Monitor  |        7 |
+| Home     | Mouse    |        8 |
+| Home     | Keyboard |        9 |
+| Office   | Laptop   |       23 |
+| Office   | Monitor  |       10 |
+| Office   | Mouse    |        9 |
+
+|Location|Count of products with quantity >= 10 per location|
+|--------+--------------------------------------------------|
+|    Home|                                                 1|
+|  Office|                                                 2|
 
 * Dataframe join operations
 ** To perform a full, outer, left, right join operations
