@@ -1845,6 +1845,62 @@ Maximum value of Quantity: 23
 |    Home|                                                 1|
 |  Office|                                                 2|
 
+* Structures
+** To extract a field from a struct as a column
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  schema = T.StructType([
+          T.StructField('Student', T.StructType([
+               T.StructField('First name', T.StringType(), True),
+               T.StructField('Middle name', T.StringType(), True),
+               T.StructField('Last name', T.StringType(), True)
+               ])),
+           T.StructField('ID', T.StringType(), True),
+           T.StructField('Gender', T.StringType(), True),
+           T.StructField('Score', T.IntegerType(), True)
+           ])
+
+  data = [
+      (("John", "", "Doe"),"1007", "M", 75),
+      (("Adam", "Scott", "Smith"),"1008", "M", 55),
+      (("Marie", "", "Carpenter"), "1004", "F", 67),
+      (("Samantha", "Louise", "Herbert"),"1002", "F", 90),
+      (("Craig", "", "Brown"), "1011", "M" , 88)
+    ]
+  df = spark.createDataFrame(data=data, schema=schema)
+  <<print_schema("df")>>df.printSchema()
+  df = df.withColumn("First name", F.col("Student.First Name"))
+  df = df.withColumn("Last name", F.upper(F.col("Student").getField("Last name")))
+  df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+Schema of ~df~ is:
+#+begin_src text
+root
+ |-- Student: struct (nullable = true)
+ |    |-- First name: string (nullable = true)
+ |    |-- Middle name: string (nullable = true)
+ |    |-- Last name: string (nullable = true)
+ |-- ID: string (nullable = true)
+ |-- Gender: string (nullable = true)
+ |-- Score: integer (nullable = true)
+#+end_src
+
+|Student                    |ID  |Gender|Score|First name|Last name|
+|---------------------------+----+------+-----+----------+---------|
+|{John, , Doe}              |1007|M     |75   |John      |DOE      |
+|{Adam, Scott, Smith}       |1008|M     |55   |Adam      |SMITH    |
+|{Marie, , Carpenter}       |1004|F     |67   |Marie     |CARPENTER|
+|{Samantha, Louise, Herbert}|1002|F     |90   |Samantha  |HERBERT  |
+|{Craig, , Brown}           |1011|M     |88   |Craig     |BROWN    |
+:end:
+
 * Dataframe join operations
 ** To perform a full, outer, left, right join operations
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
