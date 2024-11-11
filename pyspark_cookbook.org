@@ -2283,6 +2283,57 @@ root
 | X    | {B -> 0.4, C -> 0.4}   | {B -> 0.33, C -> 0.5} | {A -> 0.5, C -> 0.33} | {B -> 0.73, C -> 1.23, A -> 0.5}               |
 | Y    | {B -> 0.67, C -> 0.33} | {B -> 0.85}           | {A -> 0.4, C -> 0.57} | {B -> 1.52, C -> 0.8999999999999999, A -> 0.4} |
 
+* Groups, aggregations and window operations
+** To get 2nd smallest element in a group
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("Location", T.StringType(), True),
+          T.StructField("Product", T.StringType(), True),
+          T.StructField("Quantity", T.IntegerType(), True),
+      ]
+  )
+  data = [("Home", "Laptop", 12),
+          ("Home", "Monitor", 7),
+          ("Home", "Mouse", 8),
+          ("Home", "Keyboard", 9),
+          ("Office", "Laptop", 23),
+          ("Office", "Monitor", 10),
+          ("Office", "Mouse", 9)]
+  df = spark.createDataFrame(schema=schema, data=data)
+  w = Window.partitionBy("Location").orderBy(F.asc("Quantity"))
+  df = df.withColumn("rank", F.rank().over(w))
+  df.show()
+  print("Products with the 2nd smallest quantity in a location:")
+  df = df.filter(F.col("rank") == 2)
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+:results:
+|----------+----------+----------+------|
+| Location | Product  | Quantity | rank |
+|----------+----------+----------+------|
+| Home     | Monitor  |        7 |    1 |
+| Home     | Mouse    |        8 |    2 |
+| Home     | Keyboard |        9 |    3 |
+| Home     | Laptop   |       12 |    4 |
+| Office   | Mouse    |        9 |    1 |
+| Office   | Monitor  |       10 |    2 |
+| Office   | Laptop   |       23 |    3 |
+
+Products with the 2nd smallest quantity in a location:
+|Location|Product|Quantity|rank|
+|--------+-------+--------+----|
+|    Home|  Mouse|       8|   2|
+|  Office|Monitor|      10|   2|
+:end:
+
 * Sampling rows
 ** To sample rows
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
