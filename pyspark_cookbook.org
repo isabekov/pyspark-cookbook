@@ -1901,6 +1901,76 @@ root
 |{Craig, , Brown}           |1011|M     |88   |Craig     |BROWN    |
 :end:
 
+** To process an an array of structs using ~F.transform()~ and ~.getField()~
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+
+  # Initialize Spark session
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  # Define schema with a struct that includes an array of structs for subjects
+  schema = T.StructType([
+      T.StructField('Student', T.StructType([
+          T.StructField('First name', T.StringType(), True),
+          T.StructField('Middle name', T.StringType(), True),
+          T.StructField('Last name', T.StringType(), True)
+      ])),
+      T.StructField('ID', T.StringType(), True),
+      T.StructField('Gender', T.StringType(), True),
+      T.StructField('Score', T.IntegerType(), True),
+      T.StructField('Subjects and scores', T.ArrayType(
+          T.StructType([
+              T.StructField('Subject name', T.StringType(), True),
+              T.StructField('Subject score', T.IntegerType(), True)
+          ])
+      ), True)
+  ])
+
+  # Define data with an array of subjects for each student
+  data = [
+      (("John", "", "Doe"), "1007", "M", 75, [("Math", 78), ("Science", 82)]),
+      (("Adam", "Scott", "Smith"), "1008", "M", 55, [("Math", 55), ("English", 65)]),
+      (("Marie", "", "Carpenter"), "1004", "F", 67, [("Math", 72), ("Science", 68), ("History", 75)]),
+      (("Samantha", "Louise", "Herbert"), "1002", "F", 90, [("Math", 92), ("Science", 88), ("English", 91)]),
+      (("Craig", "", "Brown"), "1011", "M", 88, [("Math", 85), ("Science", 90)])
+  ]
+
+  df = spark.createDataFrame(data=data, schema=schema)
+
+  <<print_schema("df")>>df.printSchema()
+
+  df = df.withColumn("Subjects taken", F.transform("Subjects and scores", lambda x: x.getField("Subject name")))
+  df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+Schema of ~df~ is:
+#+begin_src text
+root
+ |-- Student: struct (nullable = true)
+ |    |-- First name: string (nullable = true)
+ |    |-- Middle name: string (nullable = true)
+ |    |-- Last name: string (nullable = true)
+ |-- ID: string (nullable = true)
+ |-- Gender: string (nullable = true)
+ |-- Score: integer (nullable = true)
+ |-- Subjects and scores: array (nullable = true)
+ |    |-- element: struct (containsNull = true)
+ |    |    |-- Subject name: string (nullable = true)
+ |    |    |-- Subject score: integer (nullable = true)
+#+end_src
+
+|Student                    |ID  |Gender|Score|Subjects and scores                       |Subjects taken          |
+|---------------------------+----+------+-----+------------------------------------------+------------------------|
+|{John, , Doe}              |1007|M     |75   |[{Math, 78}, {Science, 82}]               |[Math, Science]         |
+|{Adam, Scott, Smith}       |1008|M     |55   |[{Math, 55}, {English, 65}]               |[Math, English]         |
+|{Marie, , Carpenter}       |1004|F     |67   |[{Math, 72}, {Science, 68}, {History, 75}]|[Math, Science, History]|
+|{Samantha, Louise, Herbert}|1002|F     |90   |[{Math, 92}, {Science, 88}, {English, 91}]|[Math, Science, English]|
+|{Craig, , Brown}           |1011|M     |88   |[{Math, 85}, {Science, 90}]               |[Math, Science]         |
+:end:
 * Dataframe join operations
 ** To perform a full, outer, left, right join operations
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
