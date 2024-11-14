@@ -1971,6 +1971,92 @@ root
 |{Samantha, Louise, Herbert}|1002|F     |90   |[{Math, 92}, {Science, 88}, {English, 91}]|[Math, Science, English]|
 |{Craig, , Brown}           |1011|M     |88   |[{Math, 85}, {Science, 90}]               |[Math, Science]         |
 :end:
+** To process an array of nested structs using ~F.transform()~ and ~.getField()~
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  # Define the schema with nested structs
+  schema = T.StructType([
+    T.StructField('Student', T.StructType([
+        T.StructField('First name', T.StringType(), True),
+        T.StructField('Middle name', T.StringType(), True),
+        T.StructField('Last name', T.StringType(), True)
+    ])),
+    T.StructField('ID', T.StringType(), True),
+    T.StructField('Gender', T.StringType(), True),
+    T.StructField('Subjects', T.ArrayType(T.StructType([
+        T.StructField('Subject Name', T.StringType(), True),
+        T.StructField('Assessments', T.ArrayType(T.StructType([
+            T.StructField('Assessment Name', T.StringType(), True),
+            T.StructField('Score', T.IntegerType(), True)
+        ])), True)
+    ])), True)
+  ])
+
+  # Sample data matching the new schema
+  data = [
+    (("John", "", "Doe"), "1007", "M", [
+        ("Math", [("Midterm", 70), ("Final", 80)]),
+        ("Science", [("Midterm", 65), ("Final", 75)])
+    ]),
+    (("Adam", "Scott", "Smith"), "1008", "M", [
+        ("Math", [("Midterm", 50), ("Final", 60)]),
+        ("Science", [("Midterm", 55), ("Final", 65)])
+    ]),
+    (("Marie", "", "Carpenter"), "1004", "F", [
+        ("Math", [("Midterm", 60), ("Final", 75)]),
+        ("Science", [("Midterm", 68), ("Final", 70)])
+    ]),
+    (("Samantha", "Louise", "Herbert"), "1002", "F", [
+        ("Math", [("Midterm", 88), ("Final", 92)]),
+        ("Science", [("Midterm", 85), ("Final", 89)])
+    ]),
+    (("Craig", "", "Brown"), "1011", "M", [
+        ("Math", [("Midterm", 78), ("Final", 85)]),
+        ("Science", [("Midterm", 80), ("Final", 84)])
+    ])
+  ]
+
+  df = spark.createDataFrame(data=data, schema=schema)
+  <<print_schema("df")>>df.printSchema()
+
+  df = df.withColumn("Scores", F.transform("Subjects", lambda x: x["Assessments"].getField("Score")))
+  df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+Schema of ~df~ is:
+#+begin_src text
+root
+ |-- Student: struct (nullable = true)
+ |    |-- First name: string (nullable = true)
+ |    |-- Middle name: string (nullable = true)
+ |    |-- Last name: string (nullable = true)
+ |-- ID: string (nullable = true)
+ |-- Gender: string (nullable = true)
+ |-- Subjects: array (nullable = true)
+ |    |-- element: struct (containsNull = true)
+ |    |    |-- Subject Name: string (nullable = true)
+ |    |    |-- Assessments: array (nullable = true)
+ |    |    |    |-- element: struct (containsNull = true)
+ |    |    |    |    |-- Assessment Name: string (nullable = true)
+ |    |    |    |    |-- Score: integer (nullable = true)
+#+end_src
+
+|Student                    |ID  |Gender|Subjects                                                                       |Scores              |
+|---------------------------+----+------+-------------------------------------------------------------------------------+--------------------|
+|{John, , Doe}              |1007|M     |[{Math, [{Midterm, 70}, {Final, 80}]}, {Science, [{Midterm, 65}, {Final, 75}]}]|[[70, 80], [65, 75]]|
+|{Adam, Scott, Smith}       |1008|M     |[{Math, [{Midterm, 50}, {Final, 60}]}, {Science, [{Midterm, 55}, {Final, 65}]}]|[[50, 60], [55, 65]]|
+|{Marie, , Carpenter}       |1004|F     |[{Math, [{Midterm, 60}, {Final, 75}]}, {Science, [{Midterm, 68}, {Final, 70}]}]|[[60, 75], [68, 70]]|
+|{Samantha, Louise, Herbert}|1002|F     |[{Math, [{Midterm, 88}, {Final, 92}]}, {Science, [{Midterm, 85}, {Final, 89}]}]|[[88, 92], [85, 89]]|
+|{Craig, , Brown}           |1011|M     |[{Math, [{Midterm, 78}, {Final, 85}]}, {Science, [{Midterm, 80}, {Final, 84}]}]|[[78, 85], [80, 84]]|
+:end:
+
 * Dataframe join operations
 ** To perform a full, outer, left, right join operations
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
