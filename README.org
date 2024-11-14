@@ -22,10 +22,19 @@ Emacs with ~org-mode~ is used as a development environment. Compared to Jupyter 
 | Java Runtime Environment |  17.0.10 | newer version do not work with PySpark 3.4.0                                               |
 | PYNT (Emacs package)     |     >1.0 | interactive kernel for Python in Emacs, read installation instructions at (see [[https://github.com/ebanner/pynt][repository]]) |
 | org-export               |  64ac299 | command line tool needed for HTML export, requires Emacs (see [[https://github.com/nhoffman/org-export/tree/64ac299c041877620c2cadba83ded44f46c4e124][repository]])                  |
-
+| GNU readline             |   8.2.13 | library needed for correct invocation of Python in Emacs on MacOS                          |
 * Install Python and Python Packages
 Depending on the operating system, install ~Python~ and packages ~py4j, pyspark, pandas, pyarrow, tabulate~ using corresponding package manager and ~pip~.
-
+* MacOS-specific Installation
+Install GNU readline:
+#+begin_src shell
+  $ pip install gnureadline
+#+end_src
+Replace libedit~ with ~readline~:
+#+begin_src shell
+python -m override_readline
+#+end_src
+Details can be found [[https://emacs.stackexchange.com/questions/81683/python-org-babel-producing-garbled-result][here]].
 * PYNT Installation
 Install the codebook module with ~pip~ package manager:
 #+begin_src shell
