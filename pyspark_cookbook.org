@@ -1845,6 +1845,69 @@ Maximum value of Quantity: 23
 |    Home|                                                 1|
 |  Office|                                                 2|
 
+** To calculate minimal value of two columns per row
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  # Updated schema to include two separate score fields
+  schema = T.StructType([
+      T.StructField('Student', T.StructType([
+          T.StructField('First name', T.StringType(), True),
+          T.StructField('Middle name', T.StringType(), True),
+          T.StructField('Last name', T.StringType(), True)
+      ])),
+      T.StructField('ID', T.StringType(), True),
+      T.StructField('Gender', T.StringType(), True),
+      T.StructField('Score1', T.IntegerType(), True),
+      T.StructField('Score2', T.IntegerType(), True)
+  ])
+
+  # Sample data with two scores for each student
+  data = [
+      (("John", "", "Doe"), "1007", "M", 75, 80),
+      (("Adam", "Scott", "Smith"), "1008", "M", 55, 65),
+      (("Marie", "", "Carpenter"), "1004", "F", 67, 70),
+      (("Samantha", "Louise", "Herbert"), "1002", "F", 90, 85),
+      (("Craig", "", "Brown"), "1011", "M", 88, 92)
+  ]
+
+  df = spark.createDataFrame(data=data, schema=schema)
+  # Calculate the minimum score between Score1 and Score2 and store it in a new column 'MinScore'
+  df = df.withColumn("MinScore", F.least(F.col("Score1"), F.col("Score2")))
+  <<print_schema("df")>>df.printSchema()
+  # Show the result
+  df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+Schema of ~df~ is:
+#+begin_src text
+root
+ |-- Student: struct (nullable = true)
+ |    |-- First name: string (nullable = true)
+ |    |-- Middle name: string (nullable = true)
+ |    |-- Last name: string (nullable = true)
+ |-- ID: string (nullable = true)
+ |-- Gender: string (nullable = true)
+ |-- Score1: integer (nullable = true)
+ |-- Score2: integer (nullable = true)
+ |-- MinScore: integer (nullable = true)
+#+end_src
+
+|Student                    |ID  |Gender|Score1|Score2|MinScore|
+|---------------------------+----+------+------+------+--------|
+|{John, , Doe}              |1007|M     |75    |80    |75      |
+|{Adam, Scott, Smith}       |1008|M     |55    |65    |55      |
+|{Marie, , Carpenter}       |1004|F     |67    |70    |67      |
+|{Samantha, Louise, Herbert}|1002|F     |90    |85    |85      |
+|{Craig, , Brown}           |1011|M     |88    |92    |88      |
+:end:
+
 * Structures
 ** To convert a map to a struct
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
