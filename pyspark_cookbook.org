@@ -1846,6 +1846,35 @@ Maximum value of Quantity: 23
 |  Office|                                                 2|
 
 * Structures
+** To convert a map to a struct
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  from pyspark.sql import SparkSession
+  import pyspark.sql.functions as F
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  df = spark.sql("SELECT map('John', 1, 'Michael', 2) as Students_map")
+  df = df.withColumn("Students_struct", F.map_entries("Students_map").alias("a", "b"))
+  <<print_schema("df")>>df.printSchema()
+  df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+Schema of ~df~ is:
+#+begin_src text
+root
+ |-- Students_map: map (nullable = false)
+ |    |-- key: string
+ |    |-- value: integer (valueContainsNull = false)
+ |-- Students_struct: array (nullable = false)
+ |    |-- element: struct (containsNull = false)
+ |    |    |-- key: string (nullable = false)
+ |    |    |-- value: integer (nullable = false)
+#+end_src
+
+|Students_map             |Students_struct          |
+|-------------------------+-------------------------|
+|{John -> 1, Michael -> 2}|[{John, 1}, {Michael, 2}]|
+:end:
 ** To extract a field from a struct as a column
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
