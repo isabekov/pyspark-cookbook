@@ -8,6 +8,11 @@
 * Functions :noexport:
 #+name: txtblk
 #+begin_src python :var a="a" :exports none :results value raw :session none
+  return f"print(\"#+begin_src text\\n\" + {a} + \"\\n#+end_src\\n\")#"
+#+end_src
+
+#+name: txtblktrail
+#+begin_src python :var a="a" :exports none :results value raw :session none
   return f";print(\"#+begin_src text\\n\" + {a} + \"\\n#+end_src\\n\")#"
 #+end_src
 
@@ -611,7 +616,7 @@ Column "integer" has values: ~[1, 2, 3]~
   df.show()
   lst_dict = df.rdd.map(lambda row: row.asDict()).collect()
   print(f"Dataframe is represented as:\n")
-  txt = pprint.pformat(lst_dict)<<txtblk("txt")>>
+  txt = pprint.pformat(lst_dict)<<txtblktrail("txt")>>
 #+END_SRC
 
 #+RESULTS:
@@ -1906,6 +1911,106 @@ root
 |{Marie, , Carpenter}       |1004|F     |67    |70    |67      |
 |{Samantha, Louise, Herbert}|1002|F     |90    |85    |85      |
 |{Craig, , Brown}           |1011|M     |88    |92    |88      |
+:end:
+
+** To calculate down-sampling ratios for over-represented groups of some data used in training of a machine learning algorithm
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("group_data", T.StringType(), True),
+          T.StructField("cnt", T.IntegerType(), True),
+      ]
+  )
+  data = [("group_a", 12),
+          ("group_b", 7),
+          ("group_c", 8),
+          ("group_d", 9),
+          ("group_e", 23),
+          ("group_f", 10),
+          ("group_g", 9)]
+  dfs = spark.createDataFrame(schema=schema, data=data)
+
+  dfs = dfs.withColumn(
+          "cml_cnt",
+          F.sum("cnt").over(Window.orderBy(F.col("cnt").asc(), F.col("group_data").desc()).rowsBetween(Window.unboundedPreceding, 0)),
+      )
+  txt = "Initial data composition:"
+  <<txtblk("txt")>>print(txt)
+  # Total count of samples in the input dataset
+  dfs = dfs.withColumn("cnt_tot", F.sum("cnt").over(Window.partitionBy()))
+  dfs.show(truncate=False)
+  dfs = dfs.withColumn("rank", F.rank().over(Window.orderBy(F.desc("cnt"), F.asc("group_data"))))
+
+  cnt_total = dfs.select("cnt_tot").limit(1).collect()[0][0]
+  dfs = dfs.drop("cnt_total")
+  n_samples_limit = 65
+  txt = f"Desired number of samples as parameter: {n_samples_limit}\n"
+  w = Window.partitionBy().orderBy(F.asc("rank"))
+  dfs = dfs.withColumn("cml_cnt + (rank-1)*F.lag(cnt, 1)",
+                        F.concat_ws("", F.format_string("%2d", F.col("cml_cnt")), F.lit(" + "),
+                                        F.lit("("), F.col("rank").cast(T.StringType()), F.lit(" - "), F.lit(1).cast(T.StringType()),
+                                        F.lit(")"), F.lit(" * "), (F.lag("cnt", 1, cnt_total).over(w)).cast(T.StringType())))
+  dfs = dfs.withColumn("cnt_tot_after_top_cut", F.col("cml_cnt") + (F.col("rank") - F.lit(1)) * F.lag("cnt", 1, cnt_total).over(w))
+  dfs = dfs.withColumn("loc_cutoff", (F.col("cnt_tot_after_top_cut") > F.lit(n_samples_limit)).cast("int"))
+  dfs = dfs.withColumn("loc_cutoff_last", F.last("rank").over(Window.partitionBy("loc_cutoff").orderBy("loc_cutoff")))
+  dfs = dfs.withColumn("loc_cutoff", F.when((F.col("loc_cutoff") == 1) & (F.col("rank") == F.col("loc_cutoff_last")), F.lit(-1)).otherwise(F.col("loc_cutoff")))
+  dfs = dfs.drop("loc_cutoff_last")
+
+  rank_cutoff = dfs.filter(F.col("loc_cutoff") == 1).orderBy(F.desc("rank")).limit(1).select("rank").collect()[0][0]
+  txt += f"Rank at cutoff: {rank_cutoff}\n"
+  sum_before_cutoff = dfs.filter(F.col("loc_cutoff") == -1).orderBy(F.asc("rank")).limit(1).select("cml_cnt").collect()[0][0]
+  cnt_new_flat = (n_samples_limit - sum_before_cutoff)/rank_cutoff
+  txt += f"New samples count for groups with rank 1 to {rank_cutoff} (inclusive): {cnt_new_flat}\n"
+  dfs = dfs.withColumn("cnt_new", F.when(F.col("loc_cutoff") == F.lit(1), F.lit(cnt_new_flat)).otherwise(F.col("cnt").cast("float")))
+  txt += f"Over-represented groups will be down-sampled to have a flat distribution, under-represented groups will be kept as they are.\n"
+  dfs = dfs.withColumn(
+          "cml_cnt_new",
+          F.sum("cnt_new").over(Window.orderBy(F.desc("rank")).rowsBetween(Window.unboundedPreceding, 0)),
+  ).orderBy(F.asc("rank"))
+
+  dfs = dfs.withColumn("sampling_ratio", F.when(F.col("loc_cutoff") == F.lit(1), F.lit(cnt_new_flat)/F.col("cnt")).otherwise(F.lit(1.0)))
+  txt += f"Data from groups with rank 1 to {rank_cutoff} (inclusive) should be downsampled with a ratio of samples to keep shown in 'sampling_ratio' column:"
+  <<txtblk("txt")>>print(txt)
+  dfs.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+#+begin_src text
+Initial data composition:
+#+end_src
+|group_data|cnt|cml_cnt|cnt_tot|
+|----------+---+-------+-------|
+|group_b   |7  |7      |78     |
+|group_c   |8  |15     |78     |
+|group_g   |9  |24     |78     |
+|group_d   |9  |33     |78     |
+|group_f   |10 |43     |78     |
+|group_a   |12 |55     |78     |
+|group_e   |23 |78     |78     |
+
+#+begin_src text
+Desired number of samples as parameter: 65
+Rank at cutoff: 2
+New samples count for groups with rank 1 to 2 (inclusive): 11.0
+Over-represented groups will be down-sampled to have a flat distribution, under-represented groups will be kept as they are.
+Data from groups with rank 1 to 2 (inclusive) should be downsampled with a ratio of samples to keep shown in 'sampling_ratio' column:
+#+end_src
+
+|group_data|cnt|cml_cnt|cnt_tot|rank|cml_cnt + (rank-1)*F.lag(cnt, 1)|cnt_tot_after_top_cut|loc_cutoff|cnt_new|cml_cnt_new|sampling_ratio    |
+|----------+---+-------+-------+----+--------------------------------+---------------------+----------+-------+-----------+------------------|
+|group_e   |23 |78     |78     |1   |78 + (1 - 1) * 78               |78                   |1         |11.0   |65.0       |0.4782608695652174|
+|group_a   |12 |55     |78     |2   |55 + (2 - 1) * 23               |78                   |1         |11.0   |54.0       |0.9166666666666666|
+|group_f   |10 |43     |78     |3   |43 + (3 - 1) * 12               |67                   |-1        |10.0   |43.0       |1.0               |
+|group_d   |9  |33     |78     |4   |33 + (4 - 1) * 10               |63                   |0         |9.0    |33.0       |1.0               |
+|group_g   |9  |24     |78     |5   |24 + (5 - 1) * 9                |60                   |0         |9.0    |24.0       |1.0               |
+|group_c   |8  |15     |78     |6   |15 + (6 - 1) * 9                |60                   |0         |8.0    |15.0       |1.0               |
+|group_b   |7  |7      |78     |7   | 7 + (7 - 1) * 8                |55                   |0         |7.0    |7.0        |1.0               |
 :end:
 
 * Structures
