@@ -1214,6 +1214,33 @@ root
 |   [1, 2]| 1.5|
 |[4, 5, 6]| 5.0|
 
+** To remove NULL values from an array
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("values", T.ArrayType(T.IntegerType()), True),
+      ]
+  )
+  data = [([1, -2, None],),
+          ([4, 5, None, 6],)]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df = df.withColumn("values_without_nulls", F.array_compact("values"))
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+:results:
+|-----------------+----------------------|
+| values          | values_without_nulls |
+|-----------------+----------------------|
+| [1, -2, NULL]   | [1, -2]              |
+| [4, 5, NULL, 6] | [4, 5, 6]            |
+:end:
+
 ** To find out whether an array has any negative elements
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
