@@ -1913,6 +1913,80 @@ root
 |{Craig, , Brown}           |1011|M     |88    |92    |88      |
 :end:
 
+** To calculate difference of values of two consecutive rows for a certain column
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+
+  # Initialize Spark session
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  # Update schema to include a dataset column
+  schema = T.StructType([
+      T.StructField("dataset", T.StringType(), True),
+      T.StructField("group_data", T.StringType(), True),
+      T.StructField("cnt", T.IntegerType(), True),
+  ])
+
+  # Update data to include multiple datasets
+  data = [
+      ("dataset1", "group_b", 7),
+      ("dataset1", "group_c", 8),
+      ("dataset1", "group_d", 9),
+      ("dataset1", "group_e", 23),
+      ("dataset1", "group_g", 9),
+      ("dataset2", "group_a", 5),
+      ("dataset2", "group_b", 15),
+      ("dataset2", "group_d", 20),
+      ("dataset2", "group_e", 8),
+      ("dataset2", "group_g", 18),
+  ]
+
+  # Create DataFrame
+  dfs = spark.createDataFrame(schema=schema, data=data)
+
+  # Define a window partitioned by dataset and ordered by cnt
+  window_by_dataset = Window.partitionBy("dataset").orderBy(F.asc("cnt")).rowsBetween(Window.unboundedPreceding, 0)
+
+  # Calculate cumulative sum of 'cnt' within each dataset
+  dfs = dfs.withColumn("cml_cnt", F.sum("cnt").over(window_by_dataset))
+
+  # Define another window for consecutive row difference, partitioned by dataset
+  w = Window.partitionBy("dataset").orderBy(F.col("cnt").desc(), F.col("group_data").desc())
+
+  # Define fill value for NULL and shift (row lag) value
+  fill_null_value = 0
+  shift = -1
+
+  # Calculate difference between two consecutive rows within each dataset
+  dfs = dfs.withColumn(
+      "diff_of_two_consec_rows",
+      F.col("cml_cnt") - F.lag("cml_cnt", shift, fill_null_value).over(w)
+  )
+
+  # Show the resulting DataFrame
+  dfs.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+|----------+------------+-----+---------+-------------------------|
+| dataset  | group_data | cnt | cml_cnt | diff_of_two_consec_rows |
+|----------+------------+-----+---------+-------------------------|
+| dataset1 | group_e    |  23 |      56 |                      23 |
+| dataset1 | group_g    |   9 |      33 |                       9 |
+| dataset1 | group_d    |   9 |      24 |                       9 |
+| dataset1 | group_c    |   8 |      15 |                       8 |
+| dataset1 | group_b    |   7 |       7 |                       7 |
+| dataset2 | group_d    |  20 |      66 |                      20 |
+| dataset2 | group_g    |  18 |      46 |                      18 |
+| dataset2 | group_b    |  15 |      28 |                      15 |
+| dataset2 | group_e    |   8 |      13 |                       8 |
+| dataset2 | group_a    |   5 |       5 |                       5 |
+:end:
+
 ** To calculate down-sampling ratios for over-represented groups of some data used in training of a machine learning algorithm
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
