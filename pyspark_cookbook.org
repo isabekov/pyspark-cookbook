@@ -1433,6 +1433,62 @@ root
 | id_orange | orange    |
 | apple     | apple     |
 
+** To deduplicate identical consecutive characters using ~F.regexp_replace()~
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("String", T.StringType(), True)
+      ]
+  )
+  data = [["aaaabbccc"], ["bbbccaaa"]]
+  df = spark.createDataFrame(schema=schema, data=data)
+  df = df.withColumn('Shortened', F.regexp_replace("String", "([ab])\\1+", "$1"))
+  df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+|String   |Shortened|
+|---------+---------|
+|aaaabbccc|abccc    |
+|bbbccaaa |bcca     |
+:end:
+** To deduplicate identical consecutive characters using a UDF
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import re
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("String", T.StringType(), True)
+      ]
+  )
+  data = [["aaaabbccc"], ["bbbccaaa"]]
+
+  @F.udf(returnType=T.StringType())
+  def remove_consecutive_duplicate_characters_ab(s):
+      return re.sub(r'([ab])\1+', r'\1', s)
+
+  df = spark.createDataFrame(schema=schema, data=data)
+  df = df.withColumn('Shortened', remove_consecutive_duplicate_characters_ab("String"))
+  df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+|-----------+-----------|
+| String    | Shortened |
+|-----------+-----------|
+| aaaabbccc | abccc     |
+| bbbccaaa  | bcca      |
+:end:
+
 ** To split a string into letters (characters) using regex
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
