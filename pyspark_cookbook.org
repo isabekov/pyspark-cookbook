@@ -2843,6 +2843,91 @@ Products with the 2nd smallest quantity in a location:
 |    Home|  Mouse|       8|   2|
 |  Office|Monitor|      10|   2|
 :end:
+** To calculate set intersection between arrays in two consecutive rows in a window
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+  from typing import List
+  import pandas as pd
+  spark = SparkSession.builder.master("local[1]").appName("test-app").getOrCreate()
+  schema = T.StructType(
+      [
+          T.StructField("group", T.StringType(), True),
+          T.StructField("letters", T.ArrayType(T.StringType()), True),
+      ]
+  )
+  data = [("group_A", ["a", "b", "c"]),
+          ("group_A", ["a", "x", "z", "y"]),
+          ("group_A", ["a", "x", "z", "w"]),
+          ("group_A", ["d", "x", "z"]),
+          ("group_B", ["a", "c", "d"]),
+          ("group_B", ["a", "c", "e"]),
+          ("group_B", ["a", "g", "f", "h"])]
+  df = spark.createDataFrame(schema=schema, data=data)
+
+
+  @F.pandas_udf(returnType=T.IntegerType())
+  def number_of_input_rows_in_win(v: pd.Series) -> int:
+      """
+      Calculate number of rows in a window
+      """
+      return v.shape[0]
+
+
+  @F.pandas_udf(returnType=T.IntegerType())
+  def arr_intxn_size(v: pd.Series) -> int:
+      """
+      Calculate size of set intersection between last and penultimate elements (arrays)
+      """
+      if v.shape[0] <= 1:
+          return 0
+      else:
+          x = list(set(v.iloc[-1]).intersection(set(v.iloc[-2])))
+          return len(x)
+
+
+  @F.pandas_udf(returnType=T.ArrayType(T.StringType()))
+  def arr_intxn(v: pd.Series) -> List[str]:
+      """
+      Calculate set intersection between last and penultimate elements (arrays)
+      """
+      if v.shape[0] <= 1:
+          return []
+      else:
+          return list(set(v.iloc[-1]).intersection(set(v.iloc[-2])))
+
+
+  # A window with previous and current row (indices: -1, 0)
+  w = Window.partitionBy("group").orderBy("letters").rowsBetween(-1, 0)
+  df = df.withColumn("nbr_of_rows_in_input_win", number_of_input_rows_in_win("letters").over(w))
+  df = df.withColumn("intxn_with_prev_row", arr_intxn("letters").over(w))
+  df = df.withColumn("size_of_intxn_with_prev_row", arr_intxn_size("letters").over(w))
+  txt = "Number of rows in input window can be \nequal to 1 (first row) or\nequal to" + \
+        " 2 (consecutive two rows specified by indices (-1, 0) in window definition)"
+  <<txtblk("txt")>>print(txt)
+  df.show()
+#+END_SRC
+
+#+RESULTS:
+:results:
+#+begin_src text
+Number of rows in input window can be
+equal to 1 (first row) or
+equal to 2 (consecutive two rows specified by indices (-1, 0) in window definition)
+#+end_src
+
+|  group|     letters|nbr_of_rows_in_input_win|intxn_with_prev_row|size_of_intxn_with_prev_row|
+|-------+------------+------------------------+-------------------+---------------------------|
+|group_A|   [a, b, c]|                       1|                 []|                          0|
+|group_A|[a, x, z, w]|                       2|                [a]|                          1|
+|group_A|[a, x, z, y]|                       2|          [a, x, z]|                          3|
+|group_A|   [d, x, z]|                       2|             [x, z]|                          2|
+|group_B|   [a, c, d]|                       1|                 []|                          0|
+|group_B|   [a, c, e]|                       2|             [c, a]|                          2|
+|group_B|[a, g, f, h]|                       2|                [a]|                          1|
+:end:
 
 * Sampling rows
 ** To sample rows
