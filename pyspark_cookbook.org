@@ -2255,7 +2255,7 @@ root
 |{Craig, , Brown}           |1011|M     |88   |Craig     |BROWN    |
 :end:
 
-** To process an an array of structs using ~F.transform()~ and ~.getField()~
+** To process an array of structs using ~F.transform()~ and ~.getField()~
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
@@ -2793,7 +2793,7 @@ root
 | X    | {B -> 0.4, C -> 0.4}   | {B -> 0.33, C -> 0.5} | {A -> 0.5, C -> 0.33} | {B -> 0.73, C -> 1.23, A -> 0.5}               |
 | Y    | {B -> 0.67, C -> 0.33} | {B -> 0.85}           | {A -> 0.4, C -> 0.57} | {B -> 1.52, C -> 0.8999999999999999, A -> 0.4} |
 
-* Groups, aggregations and window operations
+* Groups, aggregations, pivoting and window operations
 ** To get 2nd smallest element in a group
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
@@ -2927,6 +2927,78 @@ equal to 2 (consecutive two rows specified by indices (-1, 0) in window definiti
 |group_B|   [a, c, d]|                       1|                 []|                          0|
 |group_B|   [a, c, e]|                       2|             [c, a]|                          2|
 |group_B|[a, g, f, h]|                       2|                [a]|                          1|
+:end:
+
+** To pivot a dataframe by some column
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+
+  # Initialize Spark session
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  # Define schema for "name", "subject", and "grade"
+  schema = T.StructType([
+      T.StructField("name", T.StringType(), True),
+      T.StructField("subject", T.StringType(), True),
+      T.StructField("grade", T.IntegerType(), True),
+  ])
+
+  # Sample data for students, their subjects, and grades
+  data = [
+      ("John", "Math", 85),
+      ("John", "Science", 90),
+      ("John", "History", 78),
+      ("Marie", "Math", 88),
+      ("Marie", "Science", 92),
+      ("Marie", "History", 80),
+      ("Adam", "Math", 75),
+      ("Adam", "Science", 82),
+      ("Adam", "History", 70),
+  ]
+
+  # Create DataFrame
+  df = spark.createDataFrame(data=data, schema=schema)
+  txt = "Original dataframe:"
+  <<txtblk("txt")>>print(txt)
+  df.show()
+
+  # Pivot the table by "subject" and aggregate by taking the first value of "grade" for each subject
+  df_pvt = df.groupBy("name").pivot("subject").agg(F.first("grade"))
+
+  txt = "Original dataframe pivoted by column \"subject\":"
+  <<txtblk("txt")>>print(txt)
+  df_pvt.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+#+begin_src text
+Original dataframe:
+#+end_src
+
+| name|subject|grade|
+|-----+-------+-----|
+| John|   Math|   85|
+| John|Science|   90|
+| John|History|   78|
+|Marie|   Math|   88|
+|Marie|Science|   92|
+|Marie|History|   80|
+| Adam|   Math|   75|
+| Adam|Science|   82|
+| Adam|History|   70|
+
+#+begin_src text
+Original dataframe pivoted by column "subject":
+#+end_src
+
+|name |History|Math|Science|
+|-----+-------+----+-------|
+|John |78     |85  |90     |
+|Adam |70     |75  |82     |
+|Marie|80     |88  |92     |
 :end:
 
 * Sampling rows
