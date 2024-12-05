@@ -2070,6 +2070,61 @@ root
 | dataset2 | group_a    |   5 |       5 |                       5 |
 :end:
 
+** To calculate difference of values of two consecutive rows for a certain column using ~.applyInPandas()~
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  import pandas as pd
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  schema = T.StructType([
+      T.StructField("group", T.StringType(), True),
+      T.StructField("value", T.IntegerType(), True),
+      T.StructField("timestamp", T.IntegerType(), True),
+  ])
+
+  data = [
+      ("A", 10, 1),
+      ("A", 15, 2),
+      ("A", 21, 3),
+      ("B", 5, 1),
+      ("B", 7, 2),
+      ("B", 12, 3),
+  ]
+
+  df = spark.createDataFrame(data=data, schema=schema)
+
+  # Define a Pandas UDF to calculate differences
+  def calculate_diff(pdf):
+      # Ensure the data is sorted by timestamp within each group
+      pdf = pdf.sort_values("timestamp")
+      # Calculate the difference between consecutive rows
+      pdf["difference"] = pdf["value"].diff()
+      pdf.loc[0, "difference"] = pdf.loc[0, "value"]
+      return pdf
+
+
+  # Apply the Pandas UDF, partitioning by the "group" column
+  df_res = df.groupBy("group").applyInPandas(calculate_diff, schema="group string, timestamp int, value int, difference int")
+
+  # Show the result
+  df_res.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+|group|timestamp|value|difference|
+|-----+---------+-----+----------|
+|A    |1        |10   |10        |
+|A    |2        |15   |5         |
+|A    |3        |21   |6         |
+|B    |1        |5    |5         |
+|B    |2        |7    |2         |
+|B    |3        |12   |5         |
+:end:
+
 ** To calculate down-sampling ratios for over-represented groups of some data used in training of a machine learning algorithm
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
