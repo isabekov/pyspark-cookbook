@@ -1640,6 +1640,111 @@ Using split function and remove last character:
 | 1703285602 | 2023-12-22 23:53:22 |
 :end:
 
+** To detect log in and log out timestamps in a sequence of events
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  from pyspark.sql.window import Window
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  schema = T.StructType([
+      T.StructField("tstp_unix", T.LongType(), True),
+      T.StructField("computer", T.StringType(), True),
+      T.StructField("user", T.StringType(), True),
+  ])
+
+  data = [
+      (1703224755, "computer_A", "user_1"),
+      (1703224780, "computer_A", "user_1"),
+      (1703224850, "computer_A", "user_1"),
+      (1703224950, "computer_B", "user_1"),
+      (1703225050, "computer_B", "user_1"),
+      (1703225100, "computer_B", "user_1"),
+      (1703225150, "computer_A", "user_1"),
+      (1703225200, "computer_B", "user_1"),
+      (1703225250, "computer_B", "user_1"),
+      (1703285700, "computer_C", "user_2"),
+      (1703285800, "computer_C", "user_2"),
+      (1703285900, "computer_C", "user_2"),
+      (1703286000, "computer_C", "user_2"),
+      (1703286100, "computer_D", "user_2"),
+      (1703286200, "computer_D", "user_2"),
+      (1703286300, "computer_D", "user_2"),
+      (1703286400, "computer_D", "user_2"),
+  ]
+
+  df = spark.createDataFrame(data=data, schema=schema)
+
+  # Add human-readable timestamp
+  df = df.withColumn("tstp_hrf", F.from_unixtime(F.col("tstp_unix"), "yyyy-MM-dd HH:mm:ss"))
+
+
+  # Define a window to identify session changes
+  window_spec = Window.partitionBy("user").orderBy(F.asc("tstp_unix"))
+
+
+  # Previous row
+  prev = F.lag("computer", 1).over(window_spec)
+  cmp_equ_prev = (F.col("computer") != F.when(prev.isNull(), "some_random_computer").otherwise(prev))
+  # Detect changes in computer usage: compare with the previous row in a window
+  df = df.withColumn("is_first", F.when(cmp_equ_prev, 1).otherwise(0))
+
+  next = F.lag("computer", -1).over(window_spec)
+  cmp_equ_next = (F.col("computer") != F.when(next.isNull(), "some_random_computer").otherwise(next))
+  # Detect changes in computer usage: compare with the next row in a window
+  df = df.withColumn("is_last", F.when(cmp_equ_next, 1).otherwise(0))
+
+  df = df.withColumn("unq_grp", F.sum("is_first").over(window_spec))
+
+  cols = ["tstp_unix", "tstp_hrf", "user", "computer", "is_first", "is_last", "unq_grp"]
+  df.select(cols).show()
+
+  cols = ["tstp_unix", "tstp_hrf", "user", "computer", "unq_grp",
+          F.col("is_first").alias("login"), F.col("is_last").alias("logout")]
+  df.filter((F.col("is_first") == 1) | (F.col("is_last") == 1)).select(cols).show()
+#+END_SRC
+
+#+RESULTS:
+:results:
+|------------+---------------------+--------+------------+----------+---------+---------|
+|  tstp_unix | tstp_hrf            | user   | computer   | is_first | is_last | unq_grp |
+|------------+---------------------+--------+------------+----------+---------+---------|
+| 1703224755 | 2023-12-22 06:59:15 | user_1 | computer_A |        1 |       0 |       1 |
+| 1703224780 | 2023-12-22 06:59:40 | user_1 | computer_A |        0 |       0 |       1 |
+| 1703224850 | 2023-12-22 07:00:50 | user_1 | computer_A |        0 |       1 |       1 |
+| 1703224950 | 2023-12-22 07:02:30 | user_1 | computer_B |        1 |       0 |       2 |
+| 1703225050 | 2023-12-22 07:04:10 | user_1 | computer_B |        0 |       0 |       2 |
+| 1703225100 | 2023-12-22 07:05:00 | user_1 | computer_B |        0 |       1 |       2 |
+| 1703225150 | 2023-12-22 07:05:50 | user_1 | computer_A |        1 |       1 |       3 |
+| 1703225200 | 2023-12-22 07:06:40 | user_1 | computer_B |        1 |       0 |       4 |
+| 1703225250 | 2023-12-22 07:07:30 | user_1 | computer_B |        0 |       1 |       4 |
+| 1703285700 | 2023-12-22 23:55:00 | user_2 | computer_C |        1 |       0 |       1 |
+| 1703285800 | 2023-12-22 23:56:40 | user_2 | computer_C |        0 |       0 |       1 |
+| 1703285900 | 2023-12-22 23:58:20 | user_2 | computer_C |        0 |       0 |       1 |
+| 1703286000 | 2023-12-23 00:00:00 | user_2 | computer_C |        0 |       1 |       1 |
+| 1703286100 | 2023-12-23 00:01:40 | user_2 | computer_D |        1 |       0 |       2 |
+| 1703286200 | 2023-12-23 00:03:20 | user_2 | computer_D |        0 |       0 |       2 |
+| 1703286300 | 2023-12-23 00:05:00 | user_2 | computer_D |        0 |       0 |       2 |
+| 1703286400 | 2023-12-23 00:06:40 | user_2 | computer_D |        0 |       1 |       2 |
+
+| tstp_unix|           tstp_hrf|  user|  computer|unq_grp|login|logout|
+|----------+-------------------+------+----------+-------+-----+------|
+|1703224755|2023-12-22 06:59:15|user_1|computer_A|      1|    1|     0|
+|1703224850|2023-12-22 07:00:50|user_1|computer_A|      1|    0|     1|
+|1703224950|2023-12-22 07:02:30|user_1|computer_B|      2|    1|     0|
+|1703225100|2023-12-22 07:05:00|user_1|computer_B|      2|    0|     1|
+|1703225150|2023-12-22 07:05:50|user_1|computer_A|      3|    1|     1|
+|1703225200|2023-12-22 07:06:40|user_1|computer_B|      4|    1|     0|
+|1703225250|2023-12-22 07:07:30|user_1|computer_B|      4|    0|     1|
+|1703285700|2023-12-22 23:55:00|user_2|computer_C|      1|    1|     0|
+|1703286000|2023-12-23 00:00:00|user_2|computer_C|      1|    0|     1|
+|1703286100|2023-12-23 00:01:40|user_2|computer_D|      2|    1|     0|
+|1703286400|2023-12-23 00:06:40|user_2|computer_D|      2|    0|     1|
+:end:
+:end:
+
 * Numerical operations
 ** To find percentage of a column
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
