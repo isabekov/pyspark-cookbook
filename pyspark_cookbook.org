@@ -1627,15 +1627,18 @@ Using split function and remove last character:
           (1703285602,)]
   df = spark.createDataFrame(schema=schema, data=data)
 
-  df = df.withColumn("time_stamp_hrf", F.from_unixtime(F.col("timestamp")))
+  df = df.withColumn("time_stamp_hrf", F.from_unixtime(F.col("timestamp"), "yyyy-MM-dd HH:mm:ss"))
   df.show()
 #+END_SRC
 
 #+RESULTS:
+:results:
+|------------+---------------------|
 |  timestamp | time_stamp_hrf      |
 |------------+---------------------|
 | 1703224755 | 2023-12-22 06:59:15 |
 | 1703285602 | 2023-12-22 23:53:22 |
+:end:
 
 * Numerical operations
 ** To find percentage of a column
