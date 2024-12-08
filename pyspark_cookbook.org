@@ -1747,6 +1747,140 @@ Using split function and remove last character:
 |1703286100|2023-12-23 00:01:40|user_2|computer_D|      2|    1|     0|
 |1703286400|2023-12-23 00:06:40|user_2|computer_D|      2|    0|     1|
 :end:
+** To estimate host change time based on log in and log out information in a sequence of events
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  from pyspark.sql.window import Window
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  schema = T.StructType([
+      T.StructField("tstp_unix", T.LongType(), True),
+      T.StructField("host", T.StringType(), True),
+      T.StructField("user", T.StringType(), True),
+  ])
+
+  data = [
+      (1703224755, "host_A", "user_1"),
+      (1703224852, "host_A", "user_1"),
+      (1703224950, "host_B", "user_1"),
+      (1703225104, "host_B", "user_1"),
+      (1703225150, "host_A", "user_1"),
+      (1703225200, "host_B", "user_1"),
+      (1703225250, "host_B", "user_1"),
+      (1703285700, "host_C", "user_2"),
+      (1703286000, "host_C", "user_2"),
+      (1703286100, "host_D", "user_2"),
+      (1703286400, "host_D", "user_2"),
+  ]
+
+  df = spark.createDataFrame(data=data, schema=schema)
+
+  # Add human-readable timestamp
+  df = df.withColumn("tstp_hrf", F.from_unixtime(F.col("tstp_unix"), "yyyy-MM-dd HH:mm:ss"))
+
+
+  # Define a window to identify session changes
+  window_spec = Window.partitionBy("user").orderBy(F.asc("tstp_unix"))
+
+  prev_tstp = F.lag("tstp_unix", 1).over(window_spec)
+  next_tstp = F.lag("tstp_unix", -1).over(window_spec)
+  prev_host = F.lag("host", 1).over(window_spec)
+  next_host = F.lag("host", -1).over(window_spec)
+
+  t_delta_prev = (F.col("tstp_unix") - prev_tstp)
+  df = df.withColumn("t_diff_prv",
+                     F.when(prev_host.isNull(), 0.0).otherwise(
+                           F.when(F.col("host") != prev_host, t_delta_prev).otherwise(None))
+                     )
+
+  t_delta_next = (next_tstp - F.col("tstp_unix"))
+  df = df.withColumn("t_diff_nxt",
+                     F.when(next_host.isNull(), 0.0).otherwise(
+                           F.when(F.col("host") != next_host, t_delta_next).otherwise(None))
+                     )
+
+  df = df.withColumn("new_tstp_prv", F.when(F.col("t_diff_prv").isNotNull(), F.col("tstp_unix") - F.col("t_diff_prv")/2 + 1))
+  df = df.withColumn("new_tstp_nxt", F.when(F.col("t_diff_nxt").isNotNull(), F.col("tstp_unix") + F.col("t_diff_nxt")/2))
+  df = df.withColumn("new_tstp_prv", F.from_unixtime("new_tstp_prv", "yyyy-MM-dd HH:mm:ss"))
+  df = df.withColumn("new_tstp_nxt", F.from_unixtime("new_tstp_nxt", "yyyy-MM-dd HH:mm:ss"))
+
+  txt = "Calculate time delta to previous and next timestamps:"
+  <<txtblk("txt")>>print(txt)
+  cols = ["tstp_unix", "tstp_hrf", "user", "host", "t_diff_prv", "t_diff_nxt", "new_tstp_prv", "new_tstp_nxt"]
+  df.select(cols).show()
+
+  txt = "Combine new timestamps calculated from adding time deltas into an array:"
+  <<txtblk("txt")>>print(txt)
+  df = df.withColumn("new_tstps", F.array_compact(F.array("new_tstp_prv", "new_tstp_nxt")))
+  cols = ["tstp_hrf", "user", "host", "new_tstp_prv", "new_tstp_nxt", "new_tstps"]
+  df.select(cols).show(truncate=False)
+
+  txt = "Explode the array with new timestamps:"
+  <<txtblk("txt")>>print(txt)
+  df = df.withColumn("new_tstp", F.explode("new_tstps"))
+  cols = ["user", "host", "tstp_hrf", "new_tstps", "new_tstp"]
+  df.select(cols).show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+#+begin_src text
+Calculate time delta to previous and next timestamps:
+#+end_src
+
+|  tstp_unix | tstp_hrf            | user   | host   | t_diff_prv | t_diff_nxt | new_tstp_prv        | new_tstp_nxt        |
+|------------+---------------------+--------+--------+------------+------------+---------------------+---------------------|
+| 1703224755 | 2023-12-22 06:59:15 | user_1 | host_A |        0.0 |       NULL | 2023-12-22 06:59:16 | NULL                |
+| 1703224852 | 2023-12-22 07:00:52 | user_1 | host_A |       NULL |       98.0 | NULL                | 2023-12-22 07:01:41 |
+| 1703224950 | 2023-12-22 07:02:30 | user_1 | host_B |       98.0 |       NULL | 2023-12-22 07:01:42 | NULL                |
+| 1703225104 | 2023-12-22 07:05:04 | user_1 | host_B |       NULL |       46.0 | NULL                | 2023-12-22 07:05:27 |
+| 1703225150 | 2023-12-22 07:05:50 | user_1 | host_A |       46.0 |       50.0 | 2023-12-22 07:05:28 | 2023-12-22 07:06:15 |
+| 1703225200 | 2023-12-22 07:06:40 | user_1 | host_B |       50.0 |       NULL | 2023-12-22 07:06:16 | NULL                |
+| 1703225250 | 2023-12-22 07:07:30 | user_1 | host_B |       NULL |        0.0 | NULL                | 2023-12-22 07:07:30 |
+| 1703285700 | 2023-12-22 23:55:00 | user_2 | host_C |        0.0 |       NULL | 2023-12-22 23:55:01 | NULL                |
+| 1703286000 | 2023-12-23 00:00:00 | user_2 | host_C |       NULL |      100.0 | NULL                | 2023-12-23 00:00:50 |
+| 1703286100 | 2023-12-23 00:01:40 | user_2 | host_D |      100.0 |       NULL | 2023-12-23 00:00:51 | NULL                |
+| 1703286400 | 2023-12-23 00:06:40 | user_2 | host_D |       NULL |        0.0 | NULL                | 2023-12-23 00:06:40 |
+
+#+begin_src text
+Combine new timestamps calculated from adding time deltas into an array:
+#+end_src
+
+| tstp_hrf            | user   | host   | new_tstp_prv        | new_tstp_nxt        | new_tstps                                    |
+|---------------------+--------+--------+---------------------+---------------------+----------------------------------------------|
+| 2023-12-22 06:59:15 | user_1 | host_A | 2023-12-22 06:59:16 | NULL                | [ 2023-12-22 06:59:16 ]                      |
+| 2023-12-22 07:00:52 | user_1 | host_A | NULL                | 2023-12-22 07:01:41 | [ 2023-12-22 07:01:41 ]                      |
+| 2023-12-22 07:02:30 | user_1 | host_B | 2023-12-22 07:01:42 | NULL                | [ 2023-12-22 07:01:42 ]                      |
+| 2023-12-22 07:05:04 | user_1 | host_B | NULL                | 2023-12-22 07:05:27 | [ 2023-12-22 07:05:27 ]                      |
+| 2023-12-22 07:05:50 | user_1 | host_A | 2023-12-22 07:05:28 | 2023-12-22 07:06:15 | [ 2023-12-22 07:05:28, 2023-12-22 07:06:15 ] |
+| 2023-12-22 07:06:40 | user_1 | host_B | 2023-12-22 07:06:16 | NULL                | [ 2023-12-22 07:06:16 ]                      |
+| 2023-12-22 07:07:30 | user_1 | host_B | NULL                | 2023-12-22 07:07:30 | [ 2023-12-22 07:07:30 ]                      |
+| 2023-12-22 23:55:00 | user_2 | host_C | 2023-12-22 23:55:01 | NULL                | [ 2023-12-22 23:55:01 ]                      |
+| 2023-12-23 00:00:00 | user_2 | host_C | NULL                | 2023-12-23 00:00:50 | [ 2023-12-23 00:00:50 ]                      |
+| 2023-12-23 00:01:40 | user_2 | host_D | 2023-12-23 00:00:51 | NULL                | [ 2023-12-23 00:00:51 ]                      |
+| 2023-12-23 00:06:40 | user_2 | host_D | NULL                | 2023-12-23 00:06:40 | [ 2023-12-23 00:06:40 ]                      |
+
+#+begin_src text
+Explode the array with new timestamps:
+#+end_src
+
+| user   | host   | tstp_hrf            | new_tstps                                    | new_tstp            |
+|--------+--------+---------------------+----------------------------------------------+---------------------|
+| user_1 | host_A | 2023-12-22 06:59:15 | [ 2023-12-22 06:59:16 ]                      | 2023-12-22 06:59:16 |
+| user_1 | host_A | 2023-12-22 07:00:52 | [ 2023-12-22 07:01:41 ]                      | 2023-12-22 07:01:41 |
+| user_1 | host_B | 2023-12-22 07:02:30 | [ 2023-12-22 07:01:42 ]                      | 2023-12-22 07:01:42 |
+| user_1 | host_B | 2023-12-22 07:05:04 | [ 2023-12-22 07:05:27 ]                      | 2023-12-22 07:05:27 |
+| user_1 | host_A | 2023-12-22 07:05:50 | [ 2023-12-22 07:05:28, 2023-12-22 07:06:15 ] | 2023-12-22 07:05:28 |
+| user_1 | host_A | 2023-12-22 07:05:50 | [ 2023-12-22 07:05:28, 2023-12-22 07:06:15 ] | 2023-12-22 07:06:15 |
+| user_1 | host_B | 2023-12-22 07:06:40 | [ 2023-12-22 07:06:16 ]                      | 2023-12-22 07:06:16 |
+| user_1 | host_B | 2023-12-22 07:07:30 | [ 2023-12-22 07:07:30 ]                      | 2023-12-22 07:07:30 |
+| user_2 | host_C | 2023-12-22 23:55:00 | [ 2023-12-22 23:55:01 ]                      | 2023-12-22 23:55:01 |
+| user_2 | host_C | 2023-12-23 00:00:00 | [ 2023-12-23 00:00:50 ]                      | 2023-12-23 00:00:50 |
+| user_2 | host_D | 2023-12-23 00:01:40 | [ 2023-12-23 00:00:51 ]                      | 2023-12-23 00:00:51 |
+| user_2 | host_D | 2023-12-23 00:06:40 | [ 2023-12-23 00:06:40 ]                      | 2023-12-23 00:06:40 |
 :end:
 
 * Numerical operations
