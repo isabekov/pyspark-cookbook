@@ -82,6 +82,10 @@
   prev_line = ""
 
   for j, line in enumerate(data.split("\n")):
+      # Prepend a white space to square brackets to prevent Org-Mode
+      # from recognizing PySpark arrays as links
+      line = re.sub("\]\]", " ]]", line)
+
       if re.match("^\+[-+]+\+$", line):
           state_curr = "hline"
       elif re.match("^\|.*\|$", line):
