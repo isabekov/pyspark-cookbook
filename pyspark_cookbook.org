@@ -3190,7 +3190,7 @@ Products with the 2nd smallest quantity in a location:
 
 
   @F.pandas_udf(returnType=T.ArrayType(T.StringType()))
-  def arr_intxn(v: pd.Series) -> List[str]:
+  def arr_intxn_pudf(v: pd.Series) -> List[str]:
       """
       Calculate set intersection between last and penultimate elements (arrays)
       """
@@ -3200,11 +3200,22 @@ Products with the 2nd smallest quantity in a location:
           return list(set(v.iloc[-1]).intersection(set(v.iloc[-2])))
 
 
+  def arr_intxn_lag(col_name, win):
+      col_lagged = F.lag(col_name, 1).over(win)
+      itxn = F.array_intersect(col_name, col_lagged)
+      return F.when(itxn.isNull(), F.array([])).otherwise(itxn)
+
+
   # A window with previous and current row (indices: -1, 0)
-  w = Window.partitionBy("group").orderBy("letters").rowsBetween(-1, 0)
-  df = df.withColumn("nbr_of_rows_in_input_win", number_of_input_rows_in_win("letters").over(w))
-  df = df.withColumn("intxn_with_prev_row", arr_intxn("letters").over(w))
-  df = df.withColumn("size_of_intxn_with_prev_row", arr_intxn_size("letters").over(w))
+  win_last_two = Window.partitionBy("group").orderBy("letters").rowsBetween(-1, 0)
+  df = df.withColumn("nbr_rows_in_input_win", number_of_input_rows_in_win("letters").over(win_last_two))
+  df = df.withColumn("intxn_w_prv_row_pudf", arr_intxn_pudf("letters").over(win_last_two))
+
+  win_unbound = Window.partitionBy("group").orderBy("letters")
+  df = df.withColumn("intxn_w_prv_row_lag", arr_intxn_lag("letters", win_unbound))
+
+  df = df.withColumn("size(intxn_w_prv_row_pudf)", arr_intxn_size("letters").over(win_last_two))
+  df = df.withColumn("size(intxn_w_prv_row)", F.size("intxn_w_prv_row_lag"))
   txt = "Number of rows in input window can be \nequal to 1 (first row) or\nequal to" + \
         " 2 (consecutive two rows specified by indices (-1, 0) in window definition)"
   <<txtblk("txt")>>print(txt)
@@ -3219,15 +3230,15 @@ equal to 1 (first row) or
 equal to 2 (consecutive two rows specified by indices (-1, 0) in window definition)
 #+end_src
 
-|  group|     letters|nbr_of_rows_in_input_win|intxn_with_prev_row|size_of_intxn_with_prev_row|
-|-------+------------+------------------------+-------------------+---------------------------|
-|group_A|   [a, b, c]|                       1|                 []|                          0|
-|group_A|[a, x, z, w]|                       2|                [a]|                          1|
-|group_A|[a, x, z, y]|                       2|          [a, x, z]|                          3|
-|group_A|   [d, x, z]|                       2|             [x, z]|                          2|
-|group_B|   [a, c, d]|                       1|                 []|                          0|
-|group_B|   [a, c, e]|                       2|             [c, a]|                          2|
-|group_B|[a, g, f, h]|                       2|                [a]|                          1|
+|  group|     letters|nbr_rows_in_input_win|intxn_w_prv_row_pudf|intxn_w_prv_row_lag|size(intxn_w_prv_row_pudf)|size(intxn_w_prv_row)|
+|-------+------------+---------------------+--------------------+-------------------+--------------------------+---------------------|
+|group_A|   [a, b, c]|                    1|                  []|                 []|                         0|                    0|
+|group_A|[a, x, z, w]|                    2|                 [a]|                [a]|                         1|                    1|
+|group_A|[a, x, z, y]|                    2|           [a, x, z]|          [a, x, z]|                         3|                    3|
+|group_A|   [d, x, z]|                    2|              [x, z]|             [x, z]|                         2|                    2|
+|group_B|   [a, c, d]|                    1|                  []|                 []|                         0|                    0|
+|group_B|   [a, c, e]|                    2|              [c, a]|             [a, c]|                         2|                    2|
+|group_B|[a, g, f, h]|                    2|                 [a]|                [a]|                         1|                    1|
 :end:
 
 ** To pivot a dataframe by some column
