@@ -1883,6 +1883,91 @@ Explode the array with new timestamps:
 | user_2 | host_D | 2023-12-23 00:06:40 | [ 2023-12-23 00:06:40 ]                      | 2023-12-23 00:06:40 |
 :end:
 
+** To round down log-in and round up log-out times of a user to midnight timestamp in a sequence of events
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql import SparkSession
+  from pyspark.sql.window import Window
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  schema = T.StructType([
+      T.StructField("tstp_unix", T.LongType(), True),
+      T.StructField("computer", T.StringType(), True),
+      T.StructField("user", T.StringType(), True),
+  ])
+
+  data = [
+      (1703224755, "computer_A", "user_1"),
+      (1703224780, "computer_A", "user_1"),
+      (1703224850, "computer_A", "user_1"),
+      (1703224950, "computer_B", "user_1"),
+      (1703225050, "computer_B", "user_1"),
+      (1703285700, "computer_C", "user_2"),
+      (1703285800, "computer_C", "user_2"),
+      (1703276000, "computer_C", "user_2"),
+      (1703286300, "computer_D", "user_2"),
+      (1703296400, "computer_D", "user_2"),
+  ]
+
+  df = spark.createDataFrame(data=data, schema=schema)
+
+  # Add human-readable timestamp
+  df = df.withColumn("tstp_hrf", F.from_unixtime(F.col("tstp_unix"), "yyyy-MM-dd HH:mm:ss"))
+
+
+  # Define a window to identify session changes
+  window_spec = Window.partitionBy("user").orderBy(F.asc("tstp_unix"))
+
+
+  # Previous row
+  prev = F.lag("computer", 1).over(window_spec)
+  df = df.withColumn("is_first", F.when(prev.isNull(), 1).otherwise(0))
+
+
+  rounded_down = F.from_unixtime("tstp_unix", "yyyy-MM-dd")
+  df = df.withColumn("rounded_tstp_first",
+                     F.when(F.col("is_first") == 1, F.unix_timestamp(rounded_down, "yyyy-MM-dd")
+                     ).otherwise(F.col("tstp_unix")))
+
+  # Next row
+  next = F.lag("computer", -1).over(window_spec)
+  df = df.withColumn("is_last", F.when(next.isNull(), 1).otherwise(0))
+
+  rounded_up = F.from_unixtime(F.col("tstp_unix") + 24*60*60, "yyyy-MM-dd")
+  df = df.withColumn("rounded_tstp_last",
+                     F.when(F.col("is_last") == 1, F.unix_timestamp(rounded_up, "yyyy-MM-dd")
+                     ).otherwise(F.col("tstp_unix")))
+
+  # Combine rounded values
+  df = df.withColumn("rounded_tstp",
+                     F.when(next.isNull(), F.col("rounded_tstp_last")
+                     ).otherwise(F.col("rounded_tstp_first")))
+  df = df.withColumn("rounded_tstp_hrf",
+                     F.from_unixtime("rounded_tstp", "yyyy-MM-dd HH:mm:ss"))
+
+  cols = ["user", "computer", "tstp_unix", "tstp_hrf", "is_first", "is_last", "rounded_tstp_hrf"]
+  df.select(cols).show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+|--------+------------+------------+---------------------+----------+---------+---------------------|
+| user   | computer   |  tstp_unix | tstp_hrf            | is_first | is_last | rounded_tstp_hrf    |
+|--------+------------+------------+---------------------+----------+---------+---------------------|
+| user_1 | computer_A | 1703224755 | 2023-12-22 06:59:15 |        1 |       0 | 2023-12-22 00:00:00 |
+| user_1 | computer_A | 1703224780 | 2023-12-22 06:59:40 |        0 |       0 | 2023-12-22 06:59:40 |
+| user_1 | computer_A | 1703224850 | 2023-12-22 07:00:50 |        0 |       0 | 2023-12-22 07:00:50 |
+| user_1 | computer_B | 1703224950 | 2023-12-22 07:02:30 |        0 |       0 | 2023-12-22 07:02:30 |
+| user_1 | computer_B | 1703225050 | 2023-12-22 07:04:10 |        0 |       1 | 2023-12-23 00:00:00 |
+| user_2 | computer_C | 1703276000 | 2023-12-22 21:13:20 |        1 |       0 | 2023-12-22 00:00:00 |
+| user_2 | computer_C | 1703285700 | 2023-12-22 23:55:00 |        0 |       0 | 2023-12-22 23:55:00 |
+| user_2 | computer_C | 1703285800 | 2023-12-22 23:56:40 |        0 |       0 | 2023-12-22 23:56:40 |
+| user_2 | computer_D | 1703286300 | 2023-12-23 00:05:00 |        0 |       0 | 2023-12-23 00:05:00 |
+| user_2 | computer_D | 1703296400 | 2023-12-23 02:53:20 |        0 |       1 | 2023-12-24 00:00:00 |
+:end:
+
 * Numerical operations
 ** To find percentage of a column
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
