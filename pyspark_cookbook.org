@@ -1464,7 +1464,7 @@ root
 | [6, 4, 7, 3] | [4, 7, 3]  |
 
 * Text processing
-** To remove prefix from a string using a UDF
+** To remove prefix from a string
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
   import pyspark.sql.types as T
@@ -1479,15 +1479,19 @@ root
           ("apple",)]
   df = spark.createDataFrame(schema=schema, data=data)
   remove_prefix = F.udf(lambda x: x[3:] if x[:3] == "id_" else x, T.StringType())
-  df = df.withColumn("no_prefix", remove_prefix(F.col("text")))
+  df = df.withColumn("no_prefix_udf", remove_prefix(F.col("text")))
+  df = df.withColumn("no_prefix_rgx", F.regexp_replace("text", "id_", ""))
   df.show()
 #+END_SRC
 
 #+RESULTS:
-| text      | no_prefix |
-|-----------+-----------|
-| id_orange | orange    |
-| apple     | apple     |
+:results:
+|-----------+---------------+---------------|
+| text      | no_prefix_udf | no_prefix_rgx |
+|-----------+---------------+---------------|
+| id_orange | orange        | orange        |
+| apple     | apple         | apple         |
+:end:
 
 ** To deduplicate identical consecutive characters using ~F.regexp_replace()~
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
