@@ -3234,6 +3234,59 @@ root
 |------+------------------------+-----------------------+-----------------------+------------------------------------------------|
 | X    | {B -> 0.4, C -> 0.4}   | {B -> 0.33, C -> 0.5} | {A -> 0.5, C -> 0.33} | {B -> 0.73, C -> 1.23, A -> 0.5}               |
 | Y    | {B -> 0.67, C -> 0.33} | {B -> 0.85}           | {A -> 0.4, C -> 0.57} | {B -> 1.52, C -> 0.8999999999999999, A -> 0.4} |
+** To unpack specific key-value pairs of a map as columns
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.types as T
+  import pyspark.sql.functions as F
+  from pyspark.sql import SparkSession
+  from typing import List
+
+  df_schema = T.StructType([T.StructField('key_val', T.MapType(T.StringType(), T.IntegerType(), True), False)])
+  df_data = [[{'A': 0, 'B': 1, 'C': 2}],
+             [{'B': 3, 'C': 4, 'D': 5}],
+             ]
+  spark = SparkSession.builder\
+          .appName("PySpark Cookbook")\
+          .getOrCreate()
+  df = spark.createDataFrame(data=df_data, schema=df_schema)
+
+  def unpack_key_value_pairs(df, map_clm: str, keys: List[str]):
+      df = df.withColumn("tmp", F.col(map_clm))
+      for key in keys:
+          df = df.withColumn(key, F.when(F.map_contains_key(map_clm, key), F.col(map_clm).getField(key)
+                                         ).otherwise(F.lit(None)))
+          df = df.withColumn("tmp", F.map_filter("tmp", lambda k, _: k != key))
+      return df.drop(map_clm).withColumnRenamed("tmp", map_clm)
+
+  txt = "Original dataframe with a map:"
+  <<txtblk("txt")>>print(txt)
+  df.show(truncate=False)
+  df = unpack_key_value_pairs(df, "key_val", ["A", "B"])
+  txt = "Dataframe with the unpacked map:"
+  <<txtblk("txt")>>print(txt)
+  df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+#+begin_src text
+Original dataframe with a map:
+#+end_src
+
+|key_val                 |
+|------------------------|
+|{A -> 0, B -> 1, C -> 2}|
+|{B -> 3, C -> 4, D -> 5}|
+
+#+begin_src text
+Dataframe with the unpacked map:
+#+end_src
+
+|key_val         |A   |B  |
+|----------------+----+---|
+|{C -> 2}        |0   |1  |
+|{C -> 4, D -> 5}|NULL|3  |
+:end:
 
 * Groups, aggregations, pivoting and window operations
 ** To get 2nd smallest element in a group
