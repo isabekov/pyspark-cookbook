@@ -3677,3 +3677,45 @@ The dataframe resides in two partitions. Seed-based random UUID generator uses t
 |Bon   |16cd1549-0c74-a483-9bbe-707e59e0796f|1e2feb89-414c-a43c-9027-c4d1c386bbc4|
 |Cecile|b8b05619-6004-aa75-b98b-7e1c83c9f301|cd613e30-d8f1-aadf-91b7-584a2265b1f5|
 |Alice |b1f1a9fb-feb9-a946-9171-3e7cb577fdaa|1e2feb89-414c-a43c-9027-c4d1c386bbc4|
+* Accumulators
+** To use an accumulator for a basic addition operation
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  from  pyspark.sql.types import IntegerType
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+
+  df = spark.range(4).toDF("num")
+  df.createOrReplaceTempView("num_table")
+  df.show()
+
+  # Define an accumulator
+  accSum = spark._sc.accumulator(0)
+
+  # Accumulator is used in addition
+  def add_acc(int_val):
+      accSum.add(int_val)
+      return int_val
+
+  # Register a user defined function
+  spark.udf.register("reg_addacc", add_acc, IntegerType())
+
+  spark.sql("SELECT sum(reg_addacc(num)) FROM num_table").show()
+
+  print(f"Accumulator value: {accSum.value}")
+#+END_SRC
+
+#+RESULTS:
+:results:
+|-----|
+| num |
+|-----|
+|   0 |
+|   1 |
+|   2 |
+|   3 |
+
+|sum(reg_addacc(num))|
+|--------------------|
+|                   6|
+
+Accumulator value: 6
+:end:
