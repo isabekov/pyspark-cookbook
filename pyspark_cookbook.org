@@ -1078,48 +1078,6 @@ root
 | [4, 5, 6, 7] |      4 |
 | [1, 1, 2, 2] |      1 |
 
-** To calculate difference of two consecutive elements in an array
-#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
-  import numpy as np
-  import pyspark.sql.functions as F
-  import pyspark.sql.types as T
-  from pyspark.sql import SparkSession
-  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
-  schema = T.StructType(
-      [
-          T.StructField("id", T.StringType(), True),
-          T.StructField("values", T.ArrayType(T.IntegerType()), True),
-      ]
-  )
-  data = [("A", [4, 1, 0, 2]),
-          ("B", [1, 0, 3, 1])]
-  df = spark.createDataFrame(schema=schema, data=data)
-
-  @F.udf(returnType=T.ArrayType(T.IntegerType()))
-  def diff_of_two_consecutive_elements(x):
-      return np.ediff1d(np.array(x)).tolist()
-
-  df = df.withColumn("diff", diff_of_two_consecutive_elements(F.col("values")))
-  df.show()
-  <<print_schema("df")>>df.printSchema()
-#+END_SRC
-
-#+RESULTS:
-| id|      values|       diff|
-|---+------------+-----------|
-|  A|[4, 1, 0, 2]|[-3, -1, 2]|
-|  B|[1, 0, 3, 1]|[-1, 3, -2]|
-
-Schema of ~df~ is:
-#+begin_src text
-root
- |-- id: string (nullable = true)
- |-- values: array (nullable = true)
- |    |-- element: integer (containsNull = true)
- |-- diff: array (nullable = true)
- |    |-- element: integer (containsNull = true)
-#+end_src
-
 ** To apply a function to every element of an array
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
