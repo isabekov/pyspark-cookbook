@@ -3655,6 +3655,48 @@ The dataframe resides in two partitions. Seed-based random UUID generator uses t
 |Cecile|59e11afb-887d-afbf-b388-d09ac39b8b74|cd613e30-d8f1-aadf-91b7-584a2265b1f5|1              |
 |Alice |57d1794c-6675-a3e8-931b-457d0a7f4b30|1e2feb89-414c-a43c-9027-c4d1c386bbc4|1              |
 :end:
+** To generate 5 character long random IDs
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+from pyspark.sql import SparkSession
+import pyspark.sql.functions as F
+import string
+
+spark = SparkSession.builder.appName("RandomID").getOrCreate()
+
+# Sample data to apply ID generation to
+data = [(1,), (2,), (3,), (4,),]
+df = spark.createDataFrame(data, ["row_id"]).repartition(2)
+
+# Generate 5-character random alphanumeric ID
+df = df.withColumn("random_uuid_short",
+        F.expr("substring(translate(uuid(), '-', ''), 1, 5)")
+      )
+
+# Characters to choose from
+CHAR_SET = string.ascii_letters + string.digits  # a-zA-Z0-9
+CHAR_LIST = list(CHAR_SET)
+N = 5  # Length of the random ID
+
+# Generate each character separately and concatenate
+for i in range(N):
+    df = df.withColumn(f"char_{i}", F.element_at(F.array([F.lit(c) for c in CHAR_LIST]), (F.rand() * len(CHAR_LIST)).cast("int") + 1))
+
+df = df.withColumn("random_id", F.concat_ws("", *[F.col(f"char_{i}") for i in range(N)]))
+
+df.select("row_id", "random_uuid_short", "random_id").show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+|--------+-------------------+-----------|
+| row_id | random_uuid_short | random_id |
+|--------+-------------------+-----------|
+|      2 | bca56             | ecLwX     |
+|      1 | a1e24             | k0uCt     |
+|      3 | 05ea2             | EEhnz     |
+|      4 | 7a9fe             | 459LF     |
+:end:
+
 * Accumulators
 ** To use an accumulator for a basic addition operation
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
