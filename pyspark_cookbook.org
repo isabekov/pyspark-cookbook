@@ -1350,20 +1350,37 @@ root
   def diff2e(x: pd.Series) -> pd.Series:
       return x.apply(lambda x: (x[1:] - x[:-1]))
 
+  df = df.withColumn("diff2e", diff2e(F.col("values")))
+
   @F.udf(returnType=T.ArrayType(T.IntegerType()))
   def diff_of_two_consecutive_elements(x):
       return np.ediff1d(np.array(x)).tolist()
 
-  df = df.withColumn("diff2e", diff2e(F.col("values")))
   df = df.withColumn("ediff1d", diff_of_two_consecutive_elements(F.col("values")))
+  df = df.withColumn("diff_transform",
+           F.transform(F.slice("values", start=2, length=(F.size("values") - F.lit(1))),
+                       lambda x, i: x - F.col("values").getItem(i))
+                     )
+
+  df = df.withColumn("diff_expr",
+    F.expr("""
+        transform(
+            slice(values, 2, size(values) - 1),
+            (x, i) -> x - values[i]
+        )
+    """)
+  )
   df.show()
 #+END_SRC
 
 #+RESULTS:
-|   values|diff2e|ediff1d|
-|---------+------+-------|
-|[1, 2, 5]|[1, 3]| [1, 3]|
-|[4, 4, 6]|[0, 2]| [0, 2]|
+:results:
+|-----------+--------+---------+----------------+-----------|
+| values    | diff2e | ediff1d | diff_transform | diff_expr |
+|-----------+--------+---------+----------------+-----------|
+| [1, 2, 5] | [1, 3] | [1, 3]  | [1, 3]         | [1, 3]    |
+| [4, 4, 6] | [0, 2] | [0, 2]  | [0, 2]         | [0, 2]    |
+:end:
 
 ** To find a union of all unique elements of multiple arrays in a group
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
