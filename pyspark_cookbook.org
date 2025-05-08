@@ -3514,6 +3514,147 @@ New group IDs:
 |group_B|sUfvt|5    |[3, 2]   |2      |[3, 5]   |5   |[1, 0]   |2  |group_B2 |
 :end:
 
+** To divide a group into N sub-groups with equal or almost equal number of rows
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+from pyspark.sql import SparkSession
+from pyspark.sql.window import Window
+import pyspark.sql.functions as F
+import string
+
+def divide_into_similar_groups(n, k):
+    """
+    Divide an integer "n" into a set of possibly "k" repeatable integers given
+    a constraint that all integers should be equal or differ by maximum of 1.
+    """
+    t = int(n/k)
+    r = n % k
+    return [t] * (k - r) + [t + 1] * r
+
+
+@F.udf(returnType=T.ArrayType(T.IntegerType()))
+def udf_divide_into_similar_groups(n, k):
+    return divide_into_similar_groups(n, k)
+
+
+spark = SparkSession.builder.appName("LabeledRandomIDs").getOrCreate()
+
+# Character set for random ID generation
+CHAR_SET = string.ascii_letters + string.digits
+CHAR_LIST = list(CHAR_SET)
+ID_LENGTH = 5
+
+data = [("group_A",) for _ in range(8)] + [("group_B",) for _ in range(5)]
+df = spark.createDataFrame(data, ["group"])
+
+# Add random 5-character ID by selecting characters from CHAR_LIST
+for i in range(ID_LENGTH):
+    df = df.withColumn(
+        f"char_{i}",
+        F.element_at(
+            F.array([F.lit(c) for c in CHAR_LIST]),
+            (F.rand() * len(CHAR_LIST)).cast("int") + 1
+        )
+    )
+
+# Concatenate characters into a single string ID
+df = df.withColumn("id", F.concat_ws("", *[F.col(f"char_{i}") for i in range(ID_LENGTH)]))
+
+txt = "Initial groups and IDs:"
+<<txtblk("txt")>>print(txt)
+df = df.select("group", "id")
+df.show(truncate=False)
+
+max_num_sub_groups = 2
+txt = f"Maximal number of sub-groups desired: {max_num_sub_groups}"
+<<txtblk("txt")>>print(txt)
+
+df_stat = df.groupBy("group").agg(F.count("id").alias("n_ids"))
+df_stat = df_stat.withColumn("terms", udf_divide_into_similar_groups(F.col("n_ids"), F.lit(max_num_sub_groups)))
+df_stat = df_stat.withColumn("n_terms", F.size("terms"))
+empty_int_array = F.array().cast(T.ArrayType(T.IntegerType()))
+df_stat = df_stat.withColumn(
+    "cum_sum",
+    F.aggregate(
+        F.col("terms"),
+        empty_int_array,
+        lambda acc, x: F.concat(
+            acc,
+            F.array(x + F.coalesce(F.element_at(acc, -1), F.lit(0).cast("int")))
+        )
+    )
+)
+txt = "Number of IDs per group:"
+<<txtblk("txt")>>print(txt)
+df_stat.orderBy("group").show(truncate=False)
+
+df = df.join(df_stat, on="group", how="left")
+
+w = Window.partitionBy("group").orderBy(F.asc("id"))
+df = df.withColumn("rank", F.dense_rank().over(w))
+df = df.withColumn("loc", F.transform("cum_sum", lambda x: (x < F.col("rank")).cast("int")))
+df = df.withColumn("pos", F.array_position(F.col("loc"), 0))
+df = df.withColumn("new_group", F.concat("group", F.col("pos").cast("string")))
+txt = "New group IDs:"
+<<txtblk("txt")>>print(txt)
+df.show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+#+begin_src text
+Initial groups and IDs:
+#+end_src
+
+|group  |id   |
+|-------+-----|
+|group_A|GN0Ax|
+|group_A|grLyR|
+|group_A|eo47Y|
+|group_A|Adm4Z|
+|group_A|KCEUD|
+|group_A|I1M9Z|
+|group_A|nKb8g|
+|group_A|3y7xZ|
+|group_B|paho5|
+|group_B|I6WmG|
+|group_B|8IA5f|
+|group_B|Pol35|
+|group_B|RLxBg|
+
+#+begin_src text
+Maximal number of sub-groups desired: 2
+#+end_src
+
+#+begin_src text
+Number of IDs per group:
+#+end_src
+
+|group  |n_ids|terms |n_terms|cum_sum|
+|-------+-----+------+-------+-------|
+|group_A|8    |[4, 4]|2      |[4, 8] |
+|group_B|5    |[2, 3]|2      |[2, 5] |
+
+#+begin_src text
+New group IDs:
+#+end_src
+
+|group  |id   |n_ids|terms |n_terms|cum_sum|rank|loc   |pos|new_group|
+|-------+-----+-----+------+-------+-------+----+------+---+---------|
+|group_A|3y7xZ|8    |[4, 4]|2      |[4, 8] |1   |[0, 0]|1  |group_A1 |
+|group_A|Adm4Z|8    |[4, 4]|2      |[4, 8] |2   |[0, 0]|1  |group_A1 |
+|group_A|GN0Ax|8    |[4, 4]|2      |[4, 8] |3   |[0, 0]|1  |group_A1 |
+|group_A|I1M9Z|8    |[4, 4]|2      |[4, 8] |4   |[0, 0]|1  |group_A1 |
+|group_A|KCEUD|8    |[4, 4]|2      |[4, 8] |5   |[1, 0]|2  |group_A2 |
+|group_A|eo47Y|8    |[4, 4]|2      |[4, 8] |6   |[1, 0]|2  |group_A2 |
+|group_A|grLyR|8    |[4, 4]|2      |[4, 8] |7   |[1, 0]|2  |group_A2 |
+|group_A|nKb8g|8    |[4, 4]|2      |[4, 8] |8   |[1, 0]|2  |group_A2 |
+|group_B|8IA5f|5    |[2, 3]|2      |[2, 5] |1   |[0, 0]|1  |group_B1 |
+|group_B|I6WmG|5    |[2, 3]|2      |[2, 5] |2   |[0, 0]|1  |group_B1 |
+|group_B|Pol35|5    |[2, 3]|2      |[2, 5] |3   |[1, 0]|2  |group_B2 |
+|group_B|RLxBg|5    |[2, 3]|2      |[2, 5] |4   |[1, 0]|2  |group_B2 |
+|group_B|paho5|5    |[2, 3]|2      |[2, 5] |5   |[1, 0]|2  |group_B2 |
+:end:
+
 ** To calculate set intersection between arrays in two consecutive rows in a window
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
