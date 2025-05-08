@@ -3589,7 +3589,7 @@ Sampled dataframe:
 |    8|  Mall|        0|
 |    9|  Mall|        1|
 
-* UUID generation
+* Random ID generation
 ** To generate a UUID for every row
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
   import pyspark.sql.functions as F
@@ -3642,16 +3642,19 @@ Sampled dataframe:
   df = df.withColumn("UUID_seed_based", udf_generate_uuid())
 
   print("The dataframe resides in two partitions. Seed-based random UUID generator uses the same seed on both partitions, yielding identical values.")
+  df = df.withColumn("Spark partition", F.spark_partition_id())
   df.show(truncate=False)
 #+END_SRC
 #+RESULTS:
+:results:
 The dataframe resides in two partitions. Seed-based random UUID generator uses the same seed on both partitions, yielding identical values.
-|Name  |UUID_random_distributed             |UUID_seed_based                     |
-|------+------------------------------------+------------------------------------|
-|John  |4e9a3bb1-a189-a25e-8389-7f8382635b09|cd613e30-d8f1-aadf-91b7-584a2265b1f5|
-|Bon   |16cd1549-0c74-a483-9bbe-707e59e0796f|1e2feb89-414c-a43c-9027-c4d1c386bbc4|
-|Cecile|b8b05619-6004-aa75-b98b-7e1c83c9f301|cd613e30-d8f1-aadf-91b7-584a2265b1f5|
-|Alice |b1f1a9fb-feb9-a946-9171-3e7cb577fdaa|1e2feb89-414c-a43c-9027-c4d1c386bbc4|
+|Name  |UUID_random_distributed             |UUID_seed_based                     |Spark partition|
+|------+------------------------------------+------------------------------------+---------------|
+|John  |c42dc153-f07e-acba-943d-4b18c655a13c|cd613e30-d8f1-aadf-91b7-584a2265b1f5|0              |
+|Bon   |11538cf9-01e3-a3e8-9f79-077c61acdfb6|1e2feb89-414c-a43c-9027-c4d1c386bbc4|0              |
+|Cecile|59e11afb-887d-afbf-b388-d09ac39b8b74|cd613e30-d8f1-aadf-91b7-584a2265b1f5|1              |
+|Alice |57d1794c-6675-a3e8-931b-457d0a7f4b30|1e2feb89-414c-a43c-9027-c4d1c386bbc4|1              |
+:end:
 * Accumulators
 ** To use an accumulator for a basic addition operation
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
