@@ -2637,6 +2637,179 @@ Data from groups with rank 1 to 2 (inclusive) should be downsampled with a ratio
 |group_b   |7  |7      |78     |7   | 7 + (7 - 1) * 8                |55                   |0         |7.0    |7.0        |1.0               |
 :end:
 
+* Statistical operations
+** To calculate distribution of discrete items by some grouping within a window
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  import pyspark.sql.types as T
+  from pyspark.sql.window import Window
+  from pyspark.sql import SparkSession
+
+  def aggregate_distribution(df_stat, col, count_column, window=None, to_order_by_pct=True, n=None, operations=None, op_cols=None):
+      """
+      Count number of rows (referenced by column `count_column`) having the same value of field `col`.
+      :param df_stat: pyspark.sql.DataFrame with `col` and `count_column` columns
+      :param col: str, column name which is used in .groupBy(...) operation
+      :param count_column: str, column name which represents a row and used in .agg(...)
+      :param to_order_by_pct: bool, flag indicating whether to order the output dataframe by % column
+      :param n: int, number of sample values of `count_column` to combine into an array
+      :return: pyspark.sql.DataFrame with columns
+          f"%_of_{count_column}s_having", f"number_of_{count_column}s_having", col, f"list_{count_column}s"
+      """
+      if type(col) == str:
+          col = [col]
+
+      if window is None:
+          window = []
+
+      if n is None:
+          samples_col = []
+          samples_op = []
+      else:
+          samples_col = [f"list_{count_column}s"]
+          kset = F.collect_list(count_column)
+          samples_op = [
+              F.when(F.count(count_column) <= n, kset)
+              .otherwise(F.concat(F.slice(kset, 1, n), F.array(F.lit("..."))))
+              .alias(f"list_{count_column}s")
+          ]
+
+      if operations is not None:
+          samples_op = samples_op + operations
+          samples_col = samples_col + op_cols
+
+      df_stat_agg = (
+          df_stat.groupBy(col)
+          .agg(F.count(count_column).alias(f"n_of_{count_column}s_having"), *samples_op)
+          .select(f"n_of_{count_column}s_having", *col, *samples_col)
+      )
+
+      df_stat_agg = df_stat_agg.withColumn(
+          f"n_of_{count_column}s_in_win",
+          F.sum(f"n_of_{count_column}s_having").over(Window.partitionBy(window)),
+          )
+      df_stat_agg = df_stat_agg.withColumn(
+          f"%_of_{count_column}s_having",
+          F.round(
+              100
+              * F.col(f"n_of_{count_column}s_having")
+              / F.col(f"n_of_{count_column}s_in_win"),
+              3,
+          ),
+      )
+      df_stat_agg = df_stat_agg.select(
+          f"%_of_{count_column}s_having", f"n_of_{count_column}s_having", *col, *samples_col, f"n_of_{count_column}s_in_win"
+      )
+
+      if to_order_by_pct:
+          # Number corresponds to %
+          df_stat_agg = df_stat_agg.orderBy([f"n_of_{count_column}s_having"], ascending=False)
+      else:
+          df_stat_agg = df_stat_agg.orderBy(col, ascending=True)
+      return df_stat_agg
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  df = spark.range(100)
+
+  # Add "class" column randomly chosen between "A" and "B"
+  df = df.withColumn("class", F.when(F.rand() < 0.5, F.lit("A")).otherwise(F.lit("B")))
+
+  # Add exponentially decaying "group" column
+  # We'll map a uniform random number to group values with exponential probabilities
+
+  # Define group weights (manually decayed): e.g. P(1) > P(2) > P(3) > P(4)
+  group_values = [1, 2, 3, 4]
+  weights = [0.5, 0.25, 0.15, 0.10]  # must sum to 1
+
+  # Compute cumulative distribution for thresholding
+  cumulative = [sum(weights[:i+1]) for i in range(len(weights))]
+
+  # Define group assignment via conditional expressions
+  group_expr = F.when(F.rand() < cumulative[0], F.lit(1)) \
+              .when(F.rand() < cumulative[1], F.lit(2)) \
+              .when(F.rand() < cumulative[2], F.lit(3)) \
+              .otherwise(F.lit(4))
+
+  df = df.withColumn("group", group_expr)
+
+  # Add random 5-letter alphanumeric "student_id" (using SHA hash trick)
+  df = df.withColumn(
+       "student_id",
+       F.sha2(F.concat_ws("", F.col("id").cast("string"), F.rand().cast("string")), 256).substr(1, 5)
+       )
+
+  df = df.select("class", "group", "student_id")
+
+  txt = "Raw data with \"student_id\" column to be aggregated:"
+  <<txtblk("txt")>>print(txt)
+  df.show(7, truncate=False)
+
+  txt = f"Number of rows in raw data: {df.count()}"
+  <<txtblk("txt")>>print(txt)
+
+  txt = "Percentages should sum up to 100 within a \"window\":"
+  <<txtblk("txt")>>print(txt)
+  df_stat = aggregate_distribution(df, ["class", "group"], "student_id", window="class", to_order_by_pct=False)
+  df_stat.orderBy("class", "group").show(truncate=False)
+
+  txt = "Argument \"window\" can be set to None as well:"
+  <<txtblk("txt")>>print(txt)
+  df_stat = aggregate_distribution(df, ["class", "group"], "student_id", window=None, to_order_by_pct=False)
+  df_stat.orderBy("class", "group").show(truncate=False)
+#+END_SRC
+
+#+RESULTS:
+:results:
+#+begin_src text
+Raw data with "student_id" column to be aggregated:
+#+end_src
+
+|class|group|student_id|
+|-----+-----+----------|
+|A    |2    |55e43     |
+|B    |1    |9578a     |
+|B    |1    |94305     |
+|A    |2    |1a0c7     |
+|B    |2    |e44c2     |
+|B    |1    |6d3e7     |
+|A    |3    |5a1ce     |
+only showing top 7 rows
+
+#+begin_src text
+Number of rows in raw data: 100
+#+end_src
+
+#+begin_src text
+Percentages should sum up to 100 within a "window":
+#+end_src
+
+|%_of_student_ids_having|n_of_student_ids_having|class|group|n_of_student_ids_in_win|
+|-----------------------+-----------------------+-----+-----+-----------------------|
+|48.889                 |22                     |A    |1    |45                     |
+|37.778                 |17                     |A    |2    |45                     |
+|11.111                 |5                      |A    |3    |45                     |
+|2.222                  |1                      |A    |4    |45                     |
+|56.364                 |31                     |B    |1    |55                     |
+|36.364                 |20                     |B    |2    |55                     |
+|5.455                  |3                      |B    |3    |55                     |
+|1.818                  |1                      |B    |4    |55                     |
+
+#+begin_src text
+Argument "window" can be set to None as well:
+#+end_src
+
+|%_of_student_ids_having|n_of_student_ids_having|class|group|n_of_student_ids_in_win|
+|-----------------------+-----------------------+-----+-----+-----------------------|
+|22.0                   |22                     |A    |1    |100                    |
+|17.0                   |17                     |A    |2    |100                    |
+|5.0                    |5                      |A    |3    |100                    |
+|1.0                    |1                      |A    |4    |100                    |
+|31.0                   |31                     |B    |1    |100                    |
+|20.0                   |20                     |B    |2    |100                    |
+|3.0                    |3                      |B    |3    |100                    |
+|1.0                    |1                      |B    |4    |100                    |
+:end:
+
 * Structures
 ** To convert a map to a struct
 #+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
