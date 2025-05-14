@@ -52,21 +52,6 @@ Open Emacs. Install ~pynt~ in Emacs through MELPA.
 #+end_src
 where RET is just the "Enter" key.
 
-To fix the following error during evaluation of code blocks:
-#+begin_src text
-  ModuleNotFoundError: No module named 'notebook.services'
-#+end_src
-
-Find the installation of PyNT:
-#+begin_src shell
-  $ grep -i kernelmanager /usr/lib/python3.11/site-packages/codebook/manager.py
-  from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
-#+end_src
-which is defined in the [[https://github.com/ebanner/pynt/blob/86cf9ce78d34f92bfd0764c9cbb75427ebd429e6/codebook/manager.py#L15][source code]] and change that line in ~manager.py~ to
-#+begin_src python
-  from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
-#+end_src
-
 * Java Runtime Installation
 PySpark Cookbook's recipes were tested in Emacs IDE using ~Java Runtime environment: 17.0.10.~. Set it as default:
 #+begin_src shell
@@ -103,3 +88,45 @@ Make sure that the cursor is inside a Python code block:
 #+end_src
 
 Press ~C-c C-c~ (i.e. ~Ctrl-c~ twice). Emacs will execute the source code block inside a Python session and display the output.
+
+* Troubleshooting
+To fix the following error during evaluation of code blocks:
+#+begin_src text
+  ModuleNotFoundError: No module named 'notebook.services'
+#+end_src
+
+Find the installation of PyNT:
+#+begin_src shell
+  $ grep -i kernelmanager /usr/lib/python3.11/site-packages/codebook/manager.py
+  from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
+#+end_src
+which is defined in the [[https://github.com/ebanner/pynt/blob/86cf9ce78d34f92bfd0764c9cbb75427ebd429e6/codebook/manager.py#L15][source code]] and change that line in ~manager.py~ to
+#+begin_src python
+  from jupyter_server.services.kernels.kernelmanager import MappingKernelManager
+#+end_src
+
+If you encounter error
+#+begin_src text
+  :nowait is incompatible with :server
+#+end_src
+then search for installation of Emacs EPC package and grep for string ~:nowait~:
+#+begin_src text
+  $ grep "nowait" ~/.emacs.d/elpa/epc-20140610.534/epcs.el
+         :family 'ipv4 :server t :nowait t
+#+end_src
+It is defined in [[https://github.com/kiwanami/emacs-epc/blob/master/epcs.el#L58][epcs.el]]. The solution is to change this line to:
+#+begin_src text
+         :family 'ipv4 :server t :nowait nil
+#+end_src
+
+If you encounter error
+#+begin_src text
+  Server may raise an error. Use "M-x epc:pop-to-last-server-process-buffer RET" to see the full traceback:
+
+  /usr/lib/python3.11/site-packages/codebook/manager.py:41: SyntaxWarning: invalid escape sequence '\d'
+  p = '.*kernel-(?P<kid>\d+).json'
+#+end_src
+append letter "r" (raw string) to the string definition in that line:
+#+begin_src text
+  p = r'.*kernel-(?P<kid>\d+).json'
+#+end_src
