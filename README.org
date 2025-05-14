@@ -10,19 +10,21 @@ Emacs with ~org-mode~ is used as a development environment. Compared to Jupyter 
 [[./screenshots/example.png]]
 
 * Development dependencies
-| Software                 |  Version | Comment                                                                                    |
-|--------------------------+----------+--------------------------------------------------------------------------------------------|
-| Emacs                    |     29.2 | main development environment                                                               |
-| Python                   |   3.11.6 | works with pyspark >= 3.4.0, [[https://stackoverflow.com/questions/75048688/picklingerror-could-not-serialize-object-indexerror-tuple-index-out-of-range][(see discussion)]]                                              |
-| python-pyspark           |    3.4.0 | Python API for Spark (large-scale data processing library)                                 |
-| python-py4j              | 0.10.9.7 | enables Python programs to dynamically access Java (dependency of PySpark)                 |
-| python-pandas            |    2.0.2 | Python data analysis library                                                               |
-| python-pyarrow           |   15.0.0 | bindings to Apache Arrow (dependency of PySpark)                                           |
-| python-tabulate          |    0.9.0 | needed to convert dataframes into org-table format                                         |
-| Java Runtime Environment |  17.0.10 | newer version do not work with PySpark 3.4.0                                               |
-| PYNT (Emacs package)     |     >1.0 | interactive kernel for Python in Emacs, read installation instructions at (see [[https://github.com/ebanner/pynt][repository]]) |
-| org-export               |  64ac299 | command line tool needed for HTML export, requires Emacs (see [[https://github.com/nhoffman/org-export/tree/64ac299c041877620c2cadba83ded44f46c4e124][repository]])                  |
-| GNU readline             |   8.2.13 | library needed for correct invocation of Python in Emacs on MacOS                          |
+| Software                     |      Version | Comment                                                                                    |
+|------------------------------+--------------+--------------------------------------------------------------------------------------------|
+| Emacs                        |         29.2 | main development environment                                                               |
+| Python                       |       3.11.6 | works with pyspark >= 3.4.0, [[https://stackoverflow.com/questions/75048688/picklingerror-could-not-serialize-object-indexerror-tuple-index-out-of-range][(see discussion)]]                                              |
+| python-pyspark               |        3.4.0 | Python API for Spark (large-scale data processing library)                                 |
+| python-py4j                  |     0.10.9.7 | enables Python programs to dynamically access Java (dependency of PySpark)                 |
+| python-pandas                |        2.0.2 | Python data analysis library                                                               |
+| python-pyarrow               |       15.0.0 | bindings to Apache Arrow (dependency of PySpark)                                           |
+| python-tabulate              |        0.9.0 | needed to convert dataframes into org-table format                                         |
+| Java Runtime Environment     |      17.0.10 | newer version do not work with PySpark 3.4.0                                               |
+| PYNT (Emacs package)         | 20180710.726 | interactive kernel for Python in Emacs, read installation instructions at (see [[https://github.com/ebanner/pynt][repository]]) |
+| ein (Emacs IPython Notebook) |     [[https://github.com/millejoh/emacs-ipython-notebook/commit/ab10680acb7908313505fd6a76f9210e59fb9dc0][ab10680a]] | a Jupyter client (newer versions >2018-10-31 do not work!)                                 |
+| emacs-epc (Emacs RPC stack)  | 20140610.534 | an asynchronous RPC stack for Emacs                                                                                          |
+| org-export                   |      64ac299 | command line tool needed for HTML export, requires Emacs (see [[https://github.com/nhoffman/org-export/tree/64ac299c041877620c2cadba83ded44f46c4e124][repository]])                  |
+| GNU readline                 |       8.2.13 | library needed for correct invocation of Python in Emacs on MacOS                          |
 * Install Python and Python Packages
 Depending on the operating system, install ~Python~ and packages ~py4j, pyspark, pandas, pyarrow, tabulate~ using corresponding package manager and ~pip~.
 * MacOS-specific Installation
@@ -51,7 +53,14 @@ Open Emacs. Install ~pynt~ in Emacs through MELPA.
   M-x package-install RET pynt
 #+end_src
 where RET is just the "Enter" key.
-
+* Install Emacs Packages
+Melpa and Elpa repositories should be already added to Emacs's package management configuration.
+To see available packages:
+#+begin_src emacs-lisp
+  M-x list-packages RET
+#+end_src
+Search for package ~epc~ using ~Ctrl-s~ and click on ~Install~.
+Repeat for package ~ein~.
 * Java Runtime Installation
 PySpark Cookbook's recipes were tested in Emacs IDE using ~Java Runtime environment: 17.0.10.~. Set it as default:
 #+begin_src shell
@@ -90,6 +99,9 @@ Make sure that the cursor is inside a Python code block:
 Press ~C-c C-c~ (i.e. ~Ctrl-c~ twice). Emacs will execute the source code block inside a Python session and display the output.
 
 * Troubleshooting
+Execution of code blocks via Jupyter kernel is possible only with installed prerequisite packages of the specified versions.
+Package ~ein~ and ~epc~ must have exactly the versions defined in the table.
+
 To fix the following error during evaluation of code blocks:
 #+begin_src text
   ModuleNotFoundError: No module named 'notebook.services'
