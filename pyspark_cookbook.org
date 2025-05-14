@@ -16,6 +16,16 @@
   return f";print(\"#+begin_src text\\n\" + {a} + \"\\n#+end_src\\n\")#"
 #+end_src
 
+#+name: txtblkstart
+#+begin_src python :exports none :results output raw :session none
+  print("#+begin_src text");
+#+end_src
+
+#+name: txtblkend
+#+begin_src python :exports none :results output raw :session none
+  print("#+end_src")#
+#+end_src
+
 #+name: tld
 #+begin_src python :exports none :results output raw :session none
   ~
@@ -2808,6 +2818,112 @@ Argument "window" can be set to None as well:
 |20.0                   |20                     |B    |2    |100                    |
 |3.0                    |3                      |B    |3    |100                    |
 |1.0                    |1                      |B    |4    |100                    |
+:end:
+
+** To calculate one-dimensional histogram of some real-valued column
+** To calculate one-dimensional histogram of some real-valued column using ~computeHistogram()~
+Install prerequisites:
+#+begin_src text
+$ sudo pip install sparkhistogram asciibars
+#+end_src
+
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  from pyspark.sql import SparkSession
+  from sparkhistogram import computeHistogram
+  import asciibars
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  df = spark.range(500)
+
+  std_dev = 0.2
+  mean_val = 0.5
+  df = df.withColumn("value", F.randn(seed=1)*F.lit(std_dev) + F.lit(mean_val)).drop("id")
+  txt = "Raw data with real-valued numbers:"
+  <<txtblk("txt")>>print(txt)
+  df.show(5, truncate=False)
+
+  txt = f"Number of rows in raw data: {df.count()}"
+  <<txtblk("txt")>>print(txt)
+
+  txt = f"Computation of histogram:"
+  <<txtblk("txt")>>print(txt)
+  n_bins = 20
+  df_hist = computeHistogram(df, value_col="value", min_val=0, max_val=1, bins=n_bins)
+  df_hist.show(5, truncate=False)
+  df_pd = df_hist.toPandas()
+
+  # Generate labels
+  df_pd["value"] = df_pd["value"].astype(str)
+  data = df_pd[["value", "count"]].apply(tuple, axis=1).tolist()
+
+  txt = "Plotting the histogram:"
+  <<txtblk("txt")>>print(txt)
+  <<txtblkstart>>
+  asciibars.plot(data, unit='*')
+  <<txtblkend>>
+  # Alternatively, use matplotlib.pyplot:
+  #df_hist.toPandas().plot(x="value", y="count", kind="bar", rot=90)
+#+END_SRC
+
+#+RESULTS:
+:results:
+#+begin_src text
+Raw data with real-valued numbers:
+#+end_src
+
+|value             |
+|------------------|
+|0.8369122250888984|
+|0.7455214018875292|
+|0.6472126581378677|
+|0.5901651497771481|
+|0.4201448106630146|
+only showing top 5 rows
+
+#+begin_src text
+Number of rows in raw data: 500
+#+end_src
+
+#+begin_src text
+Computation of histogram:
+#+end_src
+
+|bucket|value|count|
+|------+-----+-----|
+|1     |0.025|1    |
+|2     |0.075|5    |
+|3     |0.125|9    |
+|4     |0.175|14   |
+|5     |0.225|25   |
+only showing top 5 rows
+
+#+begin_src text
+Plotting the histogram:
+#+end_src
+
+#+begin_src text
+0.025 |  1
+0.075 |  5 **
+0.125 |  9 ***
+0.175 | 14 ****
+0.225 | 25 ********
+0.275 | 23 *******
+0.325 | 31 **********
+0.375 | 41 *************
+0.425 | 57 ******************
+0.475 | 39 ************
+0.525 | 63 ********************
+0.575 | 37 ************
+0.625 | 44 **************
+0.675 | 30 **********
+0.725 | 28 *********
+0.775 | 21 *******
+0.825 | 11 ***
+0.875 | 12 ****
+0.925 |  4 *
+0.975 |  1
+#+end_src
 :end:
 
 * Structures
