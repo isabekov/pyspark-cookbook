@@ -2820,7 +2820,129 @@ Argument "window" can be set to None as well:
 |1.0                    |1                      |B    |4    |100                    |
 :end:
 
-** To calculate one-dimensional histogram of some real-valued column
+** To calculate one-dimensional histogram of some real-valued column using ~F.histogram_numeric()~
+Install prerequisites:
+#+begin_src text
+$ sudo pip install sparkhistogram asciibars
+#+end_src
+
+#+BEGIN_SRC python :post pretty2orgtbl(data=*this*)
+  import pyspark.sql.functions as F
+  from pyspark.sql import SparkSession
+  from sparkhistogram import computeHistogram
+  import asciibars
+
+  spark = SparkSession.builder.master("local").appName("test-app").getOrCreate()
+  df = spark.range(500)
+
+  std_dev = 0.2
+  mean_val = 0.5
+  df = df.withColumn("value", F.randn(seed=1)*F.lit(std_dev) + F.lit(mean_val)).drop("id")
+  txt = "Raw data with real-valued numbers:"
+  <<txtblk("txt")>>print(txt)
+  df.show(5, truncate=False)
+
+  txt = f"Number of rows in raw data: {df.count()}"
+  <<txtblk("txt")>>print(txt)
+
+  txt = f"Computation of histogram:"
+  <<txtblk("txt")>>print(txt)
+  n_bins = 20
+
+  df_hist_tmp = df.select(F.histogram_numeric("value", F.lit(n_bins)).alias("h_out_arr"))
+  df_hist_tmp.show(truncate=False)
+  df_hist_exp = df_hist_tmp.select(F.explode("h_out_arr").alias("h_out"))
+  <<print_schema("df_hist_exp")>>df_hist_exp.printSchema()
+  df_hist_exp.show(5, truncate=False)
+  df_hist = df_hist_exp.select(F.col("h_out").getItem("x").alias("bin_position"),
+                               F.col("h_out").getItem("y").alias("count"))
+
+  df_pd = df_hist.toPandas()
+  # Generate labels
+  df_pd["value"] = df_pd["bin_position"].astype(str)
+  data = df_pd[["value", "count"]].apply(tuple, axis=1).tolist()
+
+  txt = "Plotting the histogram:"
+  <<txtblk("txt")>>print(txt)
+  <<txtblkstart>>
+  asciibars.plot(data, unit='*')
+  <<txtblkend>>
+  # Alternatively, use matplotlib.pyplot:
+  #df_hist.toPandas().plot(x="value", y="count", kind="bar", rot=90)
+#+END_SRC
+
+#+RESULTS:
+:results:
+#+begin_src text
+Raw data with real-valued numbers:
+#+end_src
+
+|value             |
+|------------------|
+|0.8369122250888984|
+|0.7455214018875292|
+|0.6472126581378677|
+|0.5901651497771481|
+|0.4201448106630146|
+only showing top 5 rows
+
+#+begin_src text
+Number of rows in raw data: 500
+#+end_src
+
+#+begin_src text
+Computation of histogram:
+#+end_src
+
+|h_out_arr                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|[{-0.0872447894772096, 1.0}, {0.0024384405094605432, 2.0}, {0.07780936332695879, 5.0}, {0.1368220694444101, 10.0}, {0.1888998653742949, 19.0}, {0.23456849248290465, 20.0}, {0.2868430569690284, 31.0}, {0.3576396062683868, 56.0}, {0.4172152094236562, 58.0}, {0.46460300924286213, 34.0}, {0.5221628036741729, 76.0}, {0.5965624570566733, 72.0}, {0.6776250097846892, 46.0}, {0.738924465758372, 23.0}, {0.7906222694443373, 24.0}, {0.8498940549622785, 8.0}, {0.896115487944065, 11.0}, {0.9512267351882082, 2.0}, {1.0158163757197172, 1.0}, {1.071580860317951, 1.0}]|
+
+Schema of ~df_hist_exp~ is:
+#+begin_src text
+root
+ |-- h_out: struct (nullable = true)
+ |    |-- x: double (nullable = true)
+ |    |-- y: double (nullable = true)
+#+end_src
+
+|h_out                       |
+|----------------------------|
+|{-0.0872447894772096, 1.0}  |
+|{0.0024384405094605432, 2.0}|
+|{0.07780936332695879, 5.0}  |
+|{0.1368220694444101, 10.0}  |
+|{0.1888998653742949, 19.0}  |
+only showing top 5 rows
+
+#+begin_src text
+Plotting the histogram:
+#+end_src
+
+#+begin_src text
+-0.0872447894772096   |  1.0
+0.0024384405094605432 |  2.0 *
+0.07780936332695879   |  5.0 *
+0.1368220694444101    | 10.0 ***
+0.1888998653742949    | 19.0 *****
+0.23456849248290465   | 20.0 *****
+0.2868430569690284    | 31.0 ********
+0.3576396062683868    | 56.0 ***************
+0.4172152094236562    | 58.0 ***************
+0.46460300924286213   | 34.0 *********
+0.5221628036741729    | 76.0 ********************
+0.5965624570566733    | 72.0 *******************
+0.6776250097846892    | 46.0 ************
+0.738924465758372     | 23.0 ******
+0.7906222694443373    | 24.0 ******
+0.8498940549622785    |  8.0 **
+0.896115487944065     | 11.0 ***
+0.9512267351882082    |  2.0 *
+1.0158163757197172    |  1.0
+1.071580860317951     |  1.0
+#+end_src
+:end:
+
 ** To calculate one-dimensional histogram of some real-valued column using ~computeHistogram()~
 Install prerequisites:
 #+begin_src text
