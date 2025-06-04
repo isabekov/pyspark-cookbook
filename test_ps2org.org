@@ -2,6 +2,7 @@
 #+EMAIL: aisabekov@ku.edu.tr
 #+LANGUAGE: en
 #+PROPERTY: header-args:emacs-lisp :results silent
+#+PROPERTY: header-args:python :noweb strip-export :exports both :results output raw drawer replace :session pyspark
 #+SETUPFILE: src/setupfile_html.org
 * To convert Pandas dataframe to tabular format using tabulate()
 #+header: :prologue from tabulate import tabulate
@@ -283,12 +284,17 @@ Two tables are the same.
 * To convert PySpark dataframe to tabular format using post-processing with Python
 The formatting of PySpark dataframe is done in [[https://github.com/apache/spark/blob/branch-3.5/sql/core/src/main/scala/org/apache/spark/sql/Dataset.scala#L347][.showString()]].
 #+name: pretty2orgtbl_python
-#+begin_src python :var data="" :results output
+#+begin_src python :var data="" :exports none :results output :session none :exports none
   import re
   state_prev = ""
   prev_line = ""
 
   for j, line in enumerate(data.split("\n")):
+      # Prepend a white space to square brackets to prevent Org-Mode
+      # from recognizing PySpark arrays as links (skip real links like "[[file:...]]")
+      if not re.search("file:", line):
+          line = re.sub("\]\]", " ]]", line)
+
       if re.match("^\+[-+]+\+$", line):
           state_curr = "hline"
       elif re.match("^\|.*\|$", line):
@@ -365,3 +371,27 @@ Two tables are the same.
 <tr><td>3</td><td>6</td></tr>
 </table>
 #+end_export
+* To plot a figure using matplotlib.pyplot
+#+name: plt_show
+#+BEGIN_SRC python :var fig="fig.png" :exports none :results value raw :session none
+  return f'''
+  plt.savefig(\"{fig}\", dpi=100.0, format="png", transparent=True)
+  print(f"[[file:{fig}]]")#'''
+#+END_SRC
+
+#+BEGIN_SRC python
+  import matplotlib.pyplot as plt
+  import numpy as np
+
+  x = np.linspace(0, 2 * np.pi, 100)
+  y = np.sin(x)
+  print("A sine wave:")
+  plt.plot(x, y)
+  <<plt_show("images/sine_wave.png")>>plt.show()
+#+END_SRC
+
+#+RESULTS:
+:results:
+A sine wave:
+[[file:images/sine_wave.png]]
+:end:
